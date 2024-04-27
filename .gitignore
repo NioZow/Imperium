@@ -1,0 +1,5 @@
+scripts/*.exe
+bin/*.exe
+bin/obj/*.o
+.idea
+bin/*.bin
