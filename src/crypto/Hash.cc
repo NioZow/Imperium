@@ -15,9 +15,9 @@
  * @return
  *  hash of specified data/string
  */
-FUNC ULONG HashString(
-    _In_ PVOID  String,
-    _In_ SIZE_T Length
+FUNC ULONG HashString2(
+    IN PVOID  String,
+    IN SIZE_T Length
 ) {
     ULONG  Hash = { 0 };
     PUCHAR Ptr  = { 0 };
@@ -37,7 +37,7 @@ FUNC ULONG HashString(
             if ( ! *Ptr ) break;
         } else {
             if ( U_PTR( Ptr - U_PTR( String ) ) >= Length ) break;
-            if ( !*Ptr ) ++Ptr;
+            if ( ! *Ptr ) ++Ptr;
         }
 
         if ( Char >= 'a' ) {

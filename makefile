@@ -3,7 +3,7 @@ MAKEFLAGS += "-s -j 16"
 ##
 ## Project name
 ##
-Project := stardust
+Project := project-template
 
 ##
 ## Compilers
@@ -18,13 +18,13 @@ CFLAGS  += -fno-ident -fpack-struct=8 -falign-functions=1
 CFLAGS  += -s -ffunction-sections -falign-jumps=1 -w
 CFLAGS  += -falign-labels=1 -fPIC -Wl,-Tscripts/Linker.ld
 CFLAGS  += -Wl,-s,--no-seh,--enable-stdcall-fixup
-CFLAGS  += -Iinclude -masm=intel -fpermissive -mrdrnd
+CFLAGS  += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 -DINDIRECT_SYSCALL
 
 ##
 ## Stardust source and object files
 ##
-STAR-SRC := $(wildcard src/core/*.c) $(wildcard src/crypto/*.c) $(wildcard src/main/*.c)
-STAR-OBJ := $(STAR-SRC:%.c=%.o)
+STAR-SRC := $(wildcard src/core/*.cc) $(wildcard src/crypto/*.cc) $(wildcard src/main/*.cc)
+STAR-OBJ := $(STAR-SRC:%.cc=%.o)
 
 ##
 ## x64 binaries
@@ -51,15 +51,15 @@ x64: clean asm-x64 $(STAR-OBJ)
 ## Build source to object files
 ##
 $(STAR-OBJ):
-	@ $(CC_X64) -o bin/obj/$(Project)_$(basename $(notdir $@)).x64.o -c $(basename $@).c $(CFLAGS)
+	@ $(CC_X64) -o bin/obj/$(Project)_$(basename $(notdir $@)).x64.o -c $(basename $@).cc $(CFLAGS)
 
 ##
 ## Build assemlby source to object files
 ##
 asm-x64:
 	@ echo "[*] compile assembly files"
-	@ nasm -f win64 asm/x64/Stardust.asm -o bin/obj/asm_Stardust.x64.o
-	@ nasm -f win64 asm/x64/Syscall.asm -o bin/obj/asm_Syscall.x64.o
+	@ nasm -f win64 src/asm/x64/Stardust.asm -o bin/obj/asm_Stardust.x64.o
+	@ nasm -f win64 src/asm/x64/Syscall.asm -o bin/obj/asm_Syscall.x64.o
 
 ##
 ## build the loader
@@ -72,8 +72,6 @@ loader:
 ## Clean object files and other binaries
 ##
 clean:
-	@ rm -rf .idea
 	@ rm -rf bin/obj/*.o
 	@ rm -rf bin/*.bin
 	@ rm -rf bin/*.exe
-	@ rm -rf cmake-build-debug

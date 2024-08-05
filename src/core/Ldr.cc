@@ -13,24 +13,24 @@
  *  address of the DLL base ( NULL if not found )
  */
 FUNC PVOID LdrModulePeb(
-  _In_ ULONG Hash
+    IN ULONG Hash
 ) {
-  PLDR_DATA_TABLE_ENTRY Data  = { 0 };
-  PLIST_ENTRY           Head  = { 0 };
-  PLIST_ENTRY           Entry = { 0 };
+    PLDR_DATA_TABLE_ENTRY Data  = { 0 };
+    PLIST_ENTRY           Head  = { 0 };
+    PLIST_ENTRY           Entry = { 0 };
 
-  Head  = & NtCurrentPeb()->Ldr->InLoadOrderModuleList;
-  Entry = Head->Flink;
+    Head  = &NtCurrentPeb()->Ldr->InLoadOrderModuleList;
+    Entry = Head->Flink;
 
-  for ( ; Head != Entry ; Entry = Entry->Flink ) {
-    Data = C_PTR( Entry );
+    for ( ; Head != Entry ; Entry = Entry->Flink ) {
+        Data = C_PTR( Entry );
 
-    if ( HashString( Data->BaseDllName.Buffer, Data->BaseDllName.Length ) == Hash ) {
-      return Data->DllBase;
+        if ( HashString( Data->BaseDllName.Buffer, Data->BaseDllName.Length / 2 ) == Hash ) {
+            return Data->DllBase;
+        }
     }
-  }
 
-  return NULL;
+    return NULL;
 }
 
 /*!
@@ -44,42 +44,42 @@ FUNC PVOID LdrModulePeb(
  *  pointer to Nt Header
  */
 FUNC PIMAGE_NT_HEADERS LdrpImageHeader(
-  _In_ PVOID Image
+    IN PVOID Image
 ) {
-  PIMAGE_DOS_HEADER DosHeader = { 0 };
-  PIMAGE_NT_HEADERS NtHeader  = { 0 };
+    PIMAGE_DOS_HEADER DosHeader = { 0 };
+    PIMAGE_NT_HEADERS NtHeader  = { 0 };
 
-  DosHeader = C_PTR( Image );
+    DosHeader = C_PTR( Image );
 
-  if ( DosHeader->e_magic != IMAGE_DOS_SIGNATURE ) {
-      return NULL;
-  }
+    if ( DosHeader->e_magic != IMAGE_DOS_SIGNATURE ) {
+        return NULL;
+    }
 
-  NtHeader = C_PTR( U_PTR( Image ) + DosHeader->e_lfanew );
+    NtHeader = C_PTR( U_PTR( Image ) + DosHeader->e_lfanew );
 
-  if ( NtHeader->Signature != IMAGE_NT_SIGNATURE ) {
-      return NULL;
-  }
+    if ( NtHeader->Signature != IMAGE_NT_SIGNATURE ) {
+        return NULL;
+    }
 
-  return NtHeader;
+    return NtHeader;
 }
 
 /*!
  * @brief
  *  load the address of a function from base DLL address
- * 
- * @param Module 
+ *
+ * @param Module
  *  base address of the DLL
- * 
+ *
  * @param FunctionHash
  *  hash of the function to get the address of
- * 
+ *
  * @return
  *  address of the function ( NULL if not found )
  */
 FUNC PVOID LdrFunctionAddr(
-  _In_ PVOID Library,
-  _In_ ULONG Function
+    IN PVOID Library,
+    IN ULONG Function
 ) {
     PVOID                   Address    = { 0 };
     PIMAGE_NT_HEADERS       NtHeader   = { 0 };
@@ -116,7 +116,7 @@ FUNC PVOID LdrFunctionAddr(
     //
     // iterate over export address table director
     //
-    for ( DWORD i = 0; i < ExpDir->NumberOfNames; i++ ) {
+    for ( DWORD i = 0 ; i < ExpDir->NumberOfNames ; i++ ) {
         //
         // retrieve function name
         //
@@ -127,7 +127,7 @@ FUNC PVOID LdrFunctionAddr(
         // check the function name is what we are searching for.
         // if not found keep searching.
         //
-        if ( HashString( FuncName, 0 ) != Function ) {
+        if ( HashString( FuncName, 0xFFFFFFFF ) != Function ) {
             continue;
         }
 
@@ -140,7 +140,7 @@ FUNC PVOID LdrFunctionAddr(
         // check if function is a forwarded function
         //
         if ( ( U_PTR( Address ) >= U_PTR( ExpDir ) ) &&
-             ( U_PTR( Address ) <  U_PTR( ExpDir ) + ExpDirSize )
+             ( U_PTR( Address ) < U_PTR( ExpDir ) + ExpDirSize )
         ) {
             //
             // TODO: need to add support for forwarded functions
@@ -157,54 +157,56 @@ FUNC PVOID LdrFunctionAddr(
 /*!
  * @brief
  *  use the PEB to get the current directory
- * 
+ *
  * @return
  *  current directory
  */
 FUNC LPWSTR LdrDirectoryPeb() {
-  PRTL_USER_PROCESS_PARAMETERS Parameters = ( PRTL_USER_PROCESS_PARAMETERS )( ( ( PPEB )NtCurrentTeb()->ProcessEnvironmentBlock )->ProcessParameters );
-  return ( LPWSTR )Parameters->CurrentDirectory.DosPath.Buffer;
+    PRTL_USER_PROCESS_PARAMETERS Parameters = ( PRTL_USER_PROCESS_PARAMETERS ) ( ( ( PPEB ) NtCurrentTeb()->ProcessEnvironmentBlock )->
+        ProcessParameters );
+    return ( LPWSTR ) Parameters->CurrentDirectory.DosPath.Buffer;
 }
 
 /*!
  * @brief
  *  get the path of the binary being executed by reading the PEB
- * 
- * @return 
+ *
+ * @return
  *  path
  */
 FUNC PWCHAR LdrProcessPeb() {
-  return ( PWCHAR )( ( PRTL_USER_PROCESS_PARAMETERS )( ( ( PPEB )NtCurrentTeb()->ProcessEnvironmentBlock )->ProcessParameters )->ImagePathName.Buffer );
+    return ( PWCHAR ) ( ( PRTL_USER_PROCESS_PARAMETERS ) ( ( ( PPEB ) NtCurrentTeb()->ProcessEnvironmentBlock )->ProcessParameters )->
+                                                         ImagePathName.Buffer );
 }
 
 /*!
  * @brief
  *   use the PEB to get the PID of our process
- * 
- * @return 
+ *
+ * @return
  *   PID of the process ( NULL if unknown arch )
  */
-FUNC DWORD LdrPID() {
+FUNC DWORD LdrProcessId() {
 #if _WIN64
-  return ( DWORD )( __readgsdword( 0x40 ) );
+    return ( DWORD ) ( __readgsdword( 0x40 ) );
 #elif _WIN32
   return ( DWORD )( __readfsdword( 0x20 ) );
 #endif
-  return NULL;
+    return NULL;
 }
 
 /*!
  * @brief
  *  use the PEB to get the TID of our process
- * 
+ *
  * @return
  *  TID ( NULL if unknown arch )
  */
-FUNC DWORD LdrTID() {
+FUNC DWORD LdrThreadId() {
 #if _WIN64
-  return ( DWORD )( __readgsdword( 0x48 ) );
+    return ( DWORD ) ( __readgsdword( 0x48 ) );
 #elif _WIN32
   return ( DWORD )( __readfsdword( 0x24 ) );
 #endif
-  return NULL;
+    return NULL;
 }
