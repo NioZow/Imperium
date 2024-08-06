@@ -32,6 +32,8 @@ typedef struct _BUFFER {
 #define NtProcessHeap()                 NtCurrentHeap()
 #define ZwCurrentProcess()              NtCurrentProcess()
 #define ZwCurrentThread()               NtCurrentThread()
+#define NtProcessImage()                ( PWCHAR ) NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer
+#define NtProcessCurrentDirectory()     ( PWCHAR ) NtCurrentPeb()->ProcessParameters->CurrentDirectory.DosPath
 #define CONSTEXPR                       constexpr
 #define CONSTEVAL                       consteval
 

@@ -1,5 +1,5 @@
-#ifndef STARDUST_COMMON_H
-#define STARDUST_COMMON_H
+#ifndef COMMON_H
+#define COMMON_H
 
 //
 // system headers
@@ -26,6 +26,8 @@ EXTERN_C ULONG __Instance_offset;
 EXTERN_C PVOID __Instance;
 
 typedef struct _INSTANCE {
+    PSYSCALL Syscall;
+
     //
     // base address and size
     // of the implant
@@ -88,4 +90,4 @@ enum RESOLVE_API_ERROR : CHAR {
     RESOLVE_API_ERROR_MODULE_MSVCRT   = -4,
 };
 
-#endif //STARDUST_COMMON_H
+#endif //COMMON_H

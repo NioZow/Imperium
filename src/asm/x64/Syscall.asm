@@ -1,22 +1,21 @@
 [bits 64]
 
-; export the functions
-global SyscallPrepare
+; export the function
 global SyscallInvoke
 
-section .data
-    address dq 0
-    ssn dq 0
+; import the global Instance
+extern __Instance
 
-section .text
-    SyscallPrepare:
-        mov [rel address], rcx
-        mov [rel ssn], rdx
-    ret
+[section .text$B]
 
-    ;; Invoke Syscall and pass given arguments
+    ; Invoke Syscall and pass given arguments
     SyscallInvoke:
+        ; store the adress of the SYSCALL struct
+        mov r11, [rel __Instance]
+        mov r12, [r11]
+
+        ; invoke the syscall
         mov r10, rcx
-        mov eax, [rel ssn]
-        jmp QWORD [rel address]
-    ret                         ; finished execution
+        mov eax, [r12 + 0x08]
+        jmp QWORD [r12]
+    ret
