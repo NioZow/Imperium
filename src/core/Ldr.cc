@@ -3,6 +3,8 @@
 #include <crypto/Hash.h>
 
 /*!
+ * 5pider implementation, credits go to him
+ *
  * @brief
  *  get the address of a module
  * 
@@ -25,7 +27,7 @@ FUNC PVOID LdrModulePeb(
     for ( ; Head != Entry ; Entry = Entry->Flink ) {
         Data = C_PTR( Entry );
 
-        if ( HashString( Data->BaseDllName.Buffer, Data->BaseDllName.Length / 2 ) == Hash ) {
+        if ( Imperium::crypto::hash_string( Data->BaseDllName.Buffer, Data->BaseDllName.Length / 2 ) == Hash ) {
             return Data->DllBase;
         }
     }
@@ -34,6 +36,8 @@ FUNC PVOID LdrModulePeb(
 }
 
 /*!
+ * 5pider implementation, credits go to him
+ *
  * @brief
  *  retrieve image header
  *
@@ -65,6 +69,8 @@ FUNC PIMAGE_NT_HEADERS LdrpImageHeader(
 }
 
 /*!
+ * 5pider implementation, credits go to him
+ *
  * @brief
  *  load the address of a function from base DLL address
  *
@@ -127,7 +133,7 @@ FUNC PVOID LdrFunctionAddr(
         // check the function name is what we are searching for.
         // if not found keep searching.
         //
-        if ( HashString( FuncName, 0xFFFFFFFF ) != Function ) {
+        if ( Imperium::crypto::hash_string( FuncName, 0xFFFFFFFF ) != Function ) {
             continue;
         }
 
@@ -143,7 +149,7 @@ FUNC PVOID LdrFunctionAddr(
              ( U_PTR( Address ) < U_PTR( ExpDir ) + ExpDirSize )
         ) {
             //
-            // TODO: need to add support for forwarded functions
+            // todo: add support for forwarded functions
             //
             __debugbreak();
         }

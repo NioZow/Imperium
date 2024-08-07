@@ -44,8 +44,9 @@ NTSTATUS SyscallResolve(
 );
 
 #define SYSCALL_INIT( x )                       SYSCALL x
-#define SYSCALL_RESOLVE( SyscallHash )          SyscallResolve( SyscallHash, Self->Syscall )
+#define SYSCALL_RESOLVE( SyscallHash, Syscall ) SyscallResolve( SyscallHash, Syscall  )
 #define SYSCALL_PREPARE( Syscall )              Self->Syscall = & Syscall
+#define SYSCALL_PREPARE_STARDUST( Stardust, Syscall ) Stardust = & Syscall
 #define SYSCALL_INVOKE( Syscall, ... )          SyscallInvoke( __VA_ARGS__ )
 #define SYSCALL_RESOLVE_SUCCESS( Syscall )      NT_SUCCESS( Syscall )
 

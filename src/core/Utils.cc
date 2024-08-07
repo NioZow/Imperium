@@ -55,28 +55,6 @@ FUNC VOID StringToUpperA(
     }
 }
 
-/*!
- * @brief
- *  custom memcopy implementation
- *
- * @param Out
- *  the output buffer
- *
- * @param In
- *  the input buffer
- *
- * @param Size
- *  the size of the buffer
- */
-FUNC VOID MmCopy(
-    PVOID Out,
-    PVOID In,
-    ULONG Size
-) {
-    for ( ULONG Cnt = 0 ; Cnt < Size ; Cnt++ ) {
-        ( ( PBYTE ) Out )[ Cnt ] = ( ( PBYTE ) In )[ Cnt ];
-    }
-}
 
 FUNC INT StringCompareA( char *str1, char *str2 ) {
     do {

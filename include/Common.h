@@ -11,13 +11,19 @@
 // stardust headers
 //
 #include <common/Native.h>
-#include <common/Defs.h>
+#include <common/Imperium.h>
 #include <common/Stardust.h>
 #include <core/Win32.h>
 #include <core/Utils.h>
 #include <core/Ldr.h>
 #include <crypto/Hash.h>
 #include <core/Syscall.h>
+#include <core/Utils.h>
+
+typedef struct _BUFFER {
+    PVOID Buffer;
+    ULONG Length;
+} BUFFER, *PBUFFER;
 
 //
 // stardust instances

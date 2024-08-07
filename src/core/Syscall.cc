@@ -36,7 +36,7 @@ FUNC NTSTATUS SyscallResolve(
     // get the address of the first syscall and the one we want to resolve
     //
     if ( ! ( SyscallAddr      = LdrFunctionAddr( Self->Modules.Ntdll, SyscallHash ) ) ||
-         ! ( FirstSyscallAddr = LdrFunctionAddr( Self->Modules.Ntdll, HASH_STR( "NtAccessCheck" ) ) )
+         ! ( FirstSyscallAddr = LdrFunctionAddr( Self->Modules.Ntdll, H_STR( "NtAccessCheck" ) ) )
     ) {
         return STATUS_INTERNAL_ERROR;
     }

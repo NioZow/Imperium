@@ -1,5 +1,8 @@
 #include <Common.h>
 #include <core/Runtime.h>
+#include <core/Utils.h>
+
+#include <common/Common.h>
 
 FUNC VOID Main(
     IN PVOID Param
@@ -13,13 +16,27 @@ FUNC VOID Main(
     OBJECT_ATTRIBUTES ObjAttrs        = { 0 };
     IO_STATUS_BLOCK   IoStatusBlock   = { 0 };
     SYSCALL           SysNtCreateFile = { 0 };
+    BYTE              Buffer[ 4 ]     = { 1, 2, 3, 4 };
 
+    PVOID Module = LdrModulePeb( H_STR( "kernel32.dll" ) );
+
+    PVOID Address = Imperium::win32::call< fnGetModuleHandleA >(
+        H_FUNC( "kernel32!GetModuleHandleA" ),
+        "kernel32.dll"
+    );
+
+    PRINTF( "Kernel32 is at 0x%08X 0x%08X\n", Address, Module );
+
+    /*
     Self->Syscall = &SysNtCreateFile;
 
     Message = NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer;
 
-    SYSCALL_RESOLVE( HASH_STR( "NtCreateFile" ) );
+    if ( ! NT_SUCCESS( NtStatus = SYSCALL_RESOLVE( HASH_STR( "NtCreateFile" ), Self->Syscall ) ) ) {
+        PRINTF_ERROR( "SyscallResolve failed with error: 0x%08X\n", NtStatus );
+    }
 
+    PRINTF_INFO( "Hash of NtCreateFile 0x%08X\n", HASH_STR( "NtCreateFile" ) );
     PRINTF_INFO( "Address of NtCreateFile: 0x%08X\n", Self->Syscall->Address );
     PRINTF_INFO( "SSN of NtCreateFile: 0x%X\n", Self->Syscall->Ssn );
 
@@ -43,9 +60,11 @@ FUNC VOID Main(
     }
 
     PRINTF( "NtStatus: 0x%08X\nFile: 0x%03X", NtStatus, File );
+    */
 
     //
     // pop da message
     //
-    Self->Win32.MessageBoxW( NULL, Message, L"What I miss", MB_OK );
+    //Self->Win32.MessageBoxW( NULL, Message, L"What I miss", MB_OK );
+    PRINTF_INFO( "[BUILD::%s] Execution succeeded!", __TIME__ );
 }

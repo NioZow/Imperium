@@ -59,7 +59,7 @@ FUNC VOID LogToConsole(
     //
     Self->Win32.WriteConsoleA( Self->ConsoleOutput, OutputString, OutputSize, NULL, NULL );
 
-    MmZero( OutputString, OutputSize );
+    Imperium::mem::zero( OutputString, OutputSize );
     Self->Win32.RtlFreeHeap( NtProcessHeap(), 0, OutputString );
 
     va_end( VaListArg );
