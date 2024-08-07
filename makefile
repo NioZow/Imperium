@@ -23,7 +23,7 @@ CFLAGS  += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 -DINDIRECT_SYSC
 ##
 ## Stardust source and object files
 ##
-STAR-SRC := $(wildcard src/core/*.cc) $(wildcard src/crypto/*.cc) $(wildcard src/main/*.cc) $(wildcard src/common/*.cc)
+STAR-SRC := $(wildcard src/main/*.cc) $(wildcard src/common/*.cc) $(wildcard src/core/*.cc)
 STAR-OBJ := $(STAR-SRC:%.cc=%.o)
 
 ##

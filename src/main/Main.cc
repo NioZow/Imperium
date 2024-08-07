@@ -1,8 +1,4 @@
-#include <Common.h>
-#include <core/Runtime.h>
-#include <core/Utils.h>
-
-#include <common/Common.h>
+#include <common/Imperium.h>
 
 FUNC VOID Main(
     IN PVOID Param
@@ -18,7 +14,7 @@ FUNC VOID Main(
     SYSCALL           SysNtCreateFile = { 0 };
     BYTE              Buffer[ 4 ]     = { 1, 2, 3, 4 };
 
-    PVOID Module = LdrModulePeb( H_STR( "kernel32.dll" ) );
+    PVOID Module = Imperium::ldr::module( H_STR( "kernel32.dll" ) );
 
     PVOID Address = Imperium::win32::call< fnGetModuleHandleA >(
         H_FUNC( "kernel32!GetModuleHandleA" ),

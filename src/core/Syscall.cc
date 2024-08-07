@@ -1,4 +1,4 @@
-#include <Common.h>
+#include <common/Imperium.h>
 #include <core/Syscall.h>
 
 #ifdef INDIRECT_SYSCALL
@@ -20,10 +20,9 @@ FUNC NTSTATUS SyscallResolve(
     IN ULONG     SyscallHash,
     OUT PSYSCALL Syscall
 ) {
-    STARDUST_INSTANCE;
-
     PBYTE SyscallAddr      = { 0 };
     PBYTE FirstSyscallAddr = { 0 };
+    PVOID Ntdll            = { 0 };
 
     //
     // sanity check
@@ -33,10 +32,17 @@ FUNC NTSTATUS SyscallResolve(
     }
 
     //
+    // check ntdll address
+    //
+    if ( ! Imperium::ldr::module( H_STR( "ntdll.dll" ) ) ) {
+        return STATUS_INTERNAL_ERROR;
+    }
+
+    //
     // get the address of the first syscall and the one we want to resolve
     //
-    if ( ! ( SyscallAddr      = LdrFunctionAddr( Self->Modules.Ntdll, SyscallHash ) ) ||
-         ! ( FirstSyscallAddr = LdrFunctionAddr( Self->Modules.Ntdll, H_STR( "NtAccessCheck" ) ) )
+    if ( ! ( SyscallAddr      = Imperium::ldr::function( Ntdll, SyscallHash ) ) ||
+         ! ( FirstSyscallAddr = Imperium::ldr::function( Ntdll, H_STR( "NtAccessCheck" ) ) )
     ) {
         return STATUS_INTERNAL_ERROR;
     }

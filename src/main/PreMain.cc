@@ -1,5 +1,4 @@
-#include <Common.h>
-#include <core/Runtime.h>
+#include <common/Imperium.h>
 
 ST_GLOBAL PVOID __Instance = C_PTR( 'rdp5' );
 
@@ -29,34 +28,20 @@ EXTERN_C FUNC VOID PreMain(
     MmSize = sizeof( PVOID );
 
     //
-    // resolve ntdll!RtlAllocateHeap and ntdll!NtProtectVirtualMemory for
-    // updating/patching the Instance in the current memory
-    //
-    if ( ( Error = ResolveWinApi( &Stardust ) ) != RESOLVE_API_SUCCESS ) {
-        //PRINTF_ERROR( "ResolveWinApi failed with error: %d", Error )
-        return;
-    }
-
-    //
     // change the protection of the .global section page to RW
     // to be able to write the allocated instance heap address
     //
-    //SYSCALL_PREPARE_STARDUST( Stardust.Syscall, Stardust.Win32.NtProtectVirtualMemory );
-    if ( ! NT_SUCCESS( //SYSCALL_INVOKE(
-        Stardust.Win32.NtProtectVirtualMemory(
-            NtCurrentProcess(),
-            & MmAddr,
-            & MmSize,
-            PAGE_READWRITE,
-            & Protect
-        ) ) ) {
+    if ( ! NT_SUCCESS( Imperium::win32::call< fnNtProtectVirtualMemory >(
+        H_FUNC( "ntdll!NtProtectVirtualMemory" ),
+        NtCurrentProcess(), &MmAddr, &MmSize, PAGE_READWRITE, &Protect
+    ) ) ) {
         return;
     }
 
     //
     // assign heap address into the RW memory page
     //
-    if ( ! ( C_DEF( MmAddr ) = Stardust.Win32.RtlAllocateHeap( NtProcessHeap(), HEAP_ZERO_MEMORY, sizeof( INSTANCE ) ) ) ) {
+    if ( ! ( C_DEF( MmAddr ) = Imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
         return;
     }
 

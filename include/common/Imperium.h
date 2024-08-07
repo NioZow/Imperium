@@ -1,16 +1,28 @@
-#ifndef COMMON_DEFS_H
-#define COMMON_DEFS_H
+#ifndef IMPERIUM_H
+#define IMPERIUM_H
 
-//#include <Common.h>
-
+//
+// system headers
+//
 #include <windows.h>
+#include <stdio.h>
 #include <winnt.h>
 #include <ntstatus.h>
-#include <core/Ldr.h>
 #include <utility>
-#include <core/Win32.h>
-#include <crypto/Hash.h>
+
+//
+// project headers
+//
 #include <common/Stardust.h>
+#include <common/Common.h>
+#include <common/Native.h>
+#include <core/Syscall.h>
+
+//
+// stardust instances
+//
+EXTERN_C ULONG __Instance_offset;
+EXTERN_C PVOID __Instance;
 
 //
 // thread/process related macros
@@ -51,6 +63,12 @@
 #define NO_INLINE     __attribute__ ((noinline))
 
 //
+// hashing macros
+//
+#define SEED 5
+#define RANDOM_KEY 5381
+
+//
 // casting macros
 //
 #define C_PTR( x )   ( ( PVOID    ) ( x ) )
@@ -81,7 +99,7 @@
 //
 // io macros
 //
-#define PRINTF( text, ... )             LogToConsole( text, ##__VA_ARGS__ );
+#define PRINTF( text, ... )             Imperium::io::printf( text, ##__VA_ARGS__ );
 #define PRINTF_DEBUG( text, ... )       PRINTF( "[DEBUG::%s::%s::%d] " text, __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ );
 #define PRINTF_INFO( text, ... )        PRINTF( "[*] " text, ##__VA_ARGS__ );
 #define PRINTF_ERROR( text, ... )       PRINTF_DEBUG( "[!] " text, ##__VA_ARGS__ );
@@ -99,6 +117,150 @@ typedef struct _FUNCTION_HASH {
     ULONG Module;
     ULONG Function;
 } FUNCTION_HASH, *PFUNCTION_HASH;
+
+typedef struct _BUFFER {
+    PVOID Buffer;
+    ULONG Length;
+} BUFFER, *PBUFFER;
+
+typedef struct _INSTANCE {
+    PSYSCALL Syscall;
+
+    //
+    // base address and size
+    // of the implant
+    //
+    BUFFER Base;
+
+    HANDLE ConsoleOutput;
+} INSTANCE, *PINSTANCE;
+
+//
+// forward declarations
+//
+namespace Imperium {
+    namespace crypto {
+        template<typename T>
+        ALWAYS_INLINE constexpr ULONG hash_string(
+            IN T     String,
+            IN ULONG Length
+        );
+    }
+
+    namespace ldr {
+        /*!
+         * 5pider implementation, credits go to him
+         *
+         * @brief
+         *  get the address of a module
+         *
+         * @param ModuleHash
+         *  hash of the module to get
+         *
+         * @return
+         *  address of the DLL base ( NULL if not found )
+         */
+        PVOID module(
+            IN ULONG Hash
+        );
+
+        /*!
+         * 5pider implementation, credits go to him
+         *
+         * @brief
+         *  load the address of a function from base DLL address
+         *
+         * @param Module
+         *  base address of the DLL
+         *
+         * @param FunctionHash
+         *  hash of the function to get the address of
+         *
+         * @return
+         *  address of the function ( NULL if not found )
+         */
+        PVOID function(
+            IN PVOID Library,
+            IN ULONG Function
+        );
+    }
+
+    namespace io {
+        /*!
+         * take from havoc, credits go to 5pider
+         *
+         * @brief
+         *  custom printf implementation
+         *
+         * @param fmt
+         *  format of the string
+         *
+         * @param ...
+         *  printf parameters
+         */
+        VOID printf(
+            IN PCSTR fmt,
+            ...
+        );
+    }
+}
+
+//
+// consteval hashing
+//
+template<typename T>
+consteval ULONG H_STR(
+    IN T String
+) {
+    return Imperium::crypto::hash_string< T >( String, 0xFFFFFFFF );
+}
+
+consteval FUNCTION_HASH H_FUNC(
+    PCSTR Symbol
+) {
+    PCSTR         Func       = Symbol;
+    CHAR          Mod[ 100 ] = { 0 };
+    FUNCTION_HASH FuncHash   = { 0 };
+    ULONG         Size       = { 0 };
+    INT           i          = { 0 };
+
+    //
+    // find the offset of the '!'
+    //
+    do {
+        if ( *Func == '!' ) {
+            //
+            // copy the module in another variable
+            // can't change just turn Function + 1 into a null byte because symbol is const
+            // custom memcopy because compile time is more restrictive and does not like my casting
+            // Imperium::mem::copy( Mod, Symbol, Func++ - Symbol );
+            //
+            Size = Func++ - Symbol;
+
+            for ( ; i < Size ; i++ ) {
+                Mod[ i ] = Symbol[ i ];
+            }
+
+            //
+            // append .dll to the module
+            //
+            Mod[ i ]     = '.';
+            Mod[ i + 1 ] = 'd';
+            Mod[ i + 2 ] = 'l';
+            Mod[ i + 3 ] = 'l';
+
+            //
+            // calculate the hashes
+            //
+            FuncHash.Function = H_STR( Func );
+            FuncHash.Module   = H_STR( Mod );
+
+            break;
+        }
+    } while ( *( ++Func ) );
+
+    return FuncHash;
+}
 
 //
 // functions
@@ -128,8 +290,8 @@ namespace Imperium {
          */
         template<typename Func, class... Args>
         ALWAYS_INLINE auto call( FUNCTION_HASH FuncHash, Args... args ) {
-            PVOID Module   = LdrModulePeb( FuncHash.Module );
-            Func  Function = LdrFunctionAddr( Module, FuncHash.Function );
+            PVOID Module   = ldr::module( FuncHash.Module );
+            Func  Function = ldr::function( Module, FuncHash.Function );
 
             return Function( std::forward< Args >( args )... );
         }
@@ -235,76 +397,64 @@ namespace Imperium {
             set< BYTE >( Buffer, 0, Size );
         }
 
+        /*!
+         * @brief
+         *  allocate some memory from the heap
+         *  wrapper for ntdll!RtlAllocateHeap
+         *
+         * @param Size
+         *  number of bytes to allocate
+         */
         INLINE PVOID alloc(
             ULONG size
         ) {
-            //win32::call< >()
-            return NULL;
+            return win32::call< fnRtlAllocateHeap >(
+                H_FUNC( "ntdll!RtlAllocateHeap" ),
+                NtProcessHeap(), HEAP_ZERO_MEMORY, size
+            );
         }
 
+        /*!
+         * @brief
+         *  ptr some memory from the heap
+         *  wrapper for ntdll!RtlFreeHeap
+         *
+         * @param ptr
+         *  pointer to memory that needs to be freed
+         */
         INLINE VOID free(
             PVOID ptr
         ) {
-            return;
+            win32::call< fnRtlFreeHeap >(
+                H_FUNC( "ntdll!RtlFreeHeap" ),
+                NtProcessHeap(), 0, ptr
+            );
+        }
+
+        /*!
+         * @brief
+         *  reallocate some memory from the heap
+         *  wrapper for ntdll!RtlFreeHeap
+         *
+         * @param ptr
+         *  allocated memory buffer
+         *
+         * @param size
+         *  size to allocate
+         *
+         * @return
+         *  pointer to the reallocated memory
+         */
+        INLINE PVOID realloc(
+            PVOID ptr,
+            ULONG size
+        ) {
+            return win32::call< fnRtlReAllocateHeap >(
+                H_FUNC( "ntdll!RtlReAllocateHeap" ),
+                NtProcessHeap(), HEAP_ZERO_MEMORY, ptr, size
+            );
         }
     }
 }
 
-//
-// consteval hashing
-//
-template<typename T>
-consteval ULONG H_STR(
-    IN T String
-) {
-    return Imperium::crypto::hash_string< T >( String, 0xFFFFFFFF );
-}
-
-consteval FUNCTION_HASH H_FUNC(
-    PCSTR Symbol
-) {
-    PCSTR         Func       = Symbol;
-    CHAR          Mod[ 100 ] = { 0 };
-    FUNCTION_HASH FuncHash   = { 0 };
-    ULONG         Size       = { 0 };
-    INT           i          = { 0 };
-
-    //
-    // find the offset of the '!'
-    //
-    do {
-        if ( *Func == '!' ) {
-            //
-            // copy the module in another variable
-            // can't change just turn Function + 1 into a null byte because symbol is const
-            // custom memcopy because compile time is more restrictive and does not like my casting
-            // Imperium::mem::copy( Mod, Symbol, Func++ - Symbol );
-            //
-            Size = Func++ - Symbol;
-
-            for ( ; i < Size ; i++ ) {
-                Mod[ i ] = Symbol[ i ];
-            }
-
-            //
-            // append .dll to the module
-            //
-            Mod[ i ]     = '.';
-            Mod[ i + 1 ] = 'd';
-            Mod[ i + 2 ] = 'l';
-            Mod[ i + 3 ] = 'l';
-
-            //
-            // calculate the hashes
-            //
-            FuncHash.Function = H_STR( Func );
-            FuncHash.Module   = H_STR( Mod );
-
-            break;
-        }
-    } while ( *( ++Func ) );
-
-    return FuncHash;
-}
-
-#endif //COMMON_DEFS_H
+#endif //IMPERIUM_H

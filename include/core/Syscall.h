@@ -1,7 +1,7 @@
 #ifndef CORE_SYSCALL_H
 #define CORE_SYSCALL_H
 
-#include <Common.h>
+#include <windows.h>
 
 #ifdef INDIRECT_SYSCALL
 
