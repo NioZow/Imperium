@@ -1,10 +1,26 @@
 #include <common/Imperium.h>
 
 namespace Imperium {
+    FUNC PINSTANCE get_instance() {
+        PINSTANCE Instance = { 0 };
+        ULONG     Context  = { 0 };
+
+        for ( int i = 0 ; i < NtCurrentPeb()->NumberOfHeaps ; i++ ) {
+            Context = ( ( PINSTANCE ) ( NtCurrentPeb()->ProcessHeaps[ i ] ) )->Context;
+
+            if ( Context == 0xc0debabe ) {
+                Instance = NtCurrentPeb()->ProcessHeaps[ i ];
+                break;
+            }
+        }
+
+        return Instance;
+    }
+
     namespace crypto {
         FUNC ULONG hash_string(
             IN PCWSTR String,
-            IN ULONG Length
+            IN ULONG  Length
         ) {
             ULONG  Hash = { 0 };
             USHORT Char = { 0 };

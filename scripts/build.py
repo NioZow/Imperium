@@ -3,6 +3,7 @@
 
 import pefile
 import argparse
+import hashlib
 
 STARDUST_END : bytes = b'STARDUST-END'
 PAGE_SIZE    : int   = 0x1000
@@ -15,6 +16,16 @@ def size_to_pages( size: int ) -> int:
     BASE_PAGE_SHIFT : int = 12
 
     return ( size >> BASE_PAGE_SHIFT ) + ( ( size & PAGE_MASK ) != 0 )
+
+def calculate_sha256(file_path):
+    sha256_hash = hashlib.sha256()
+
+    # Read the file in chunks to handle large files
+    with open(file_path, "rb") as f:
+        for byte_block in iter(lambda: f.read(4096), b""):
+            sha256_hash.update(byte_block)
+
+    return sha256_hash.hexdigest()
 
 ##
 ## parse specified executable file and
@@ -49,14 +60,6 @@ def main() -> None:
     size = len( shellcode )
 
     ##
-    ## print metadata
-    ##
-    print( f"[*] payload len : { size - padding } bytes" )
-    print( f"[*] size        : { size } bytes" )
-    print( f"[*] padding     : { padding } bytes" )
-    print( f"[*] page count  : { size / PAGE_SIZE } pages" )
-
-    ##
     ## open shellcode file
     ##
     file = open( option.o, 'wb+' )
@@ -66,6 +69,20 @@ def main() -> None:
     ##
     file.write( shellcode )
     file.close()
+
+    ##
+    ## get the sha256 hash of the shellcode
+    ##
+    hash = calculate_sha256( option.o )
+
+    ##
+    ## print metadata
+    ##
+    print( f"[*] payload len : { size - padding } bytes" )
+    print( f"[*] size        : { size } bytes" )
+    print( f"[*] padding     : { padding } bytes" )
+    print( f"[*] page count  : { size / PAGE_SIZE } pages" )
+    print( f"[*] sha256sum   : { hash }" )
 
     return
 

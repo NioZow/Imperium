@@ -16,7 +16,6 @@
 #include <common/Stardust.h>
 #include <common/Common.h>
 #include <common/Native.h>
-#include <core/Syscall.h>
 
 //
 // stardust instances
@@ -122,7 +121,42 @@ typedef struct _BUFFER {
     ULONG Length;
 } BUFFER, *PBUFFER;
 
+typedef struct _SYSCALL {
+    PVOID  Address;
+    USHORT Ssn;
+} SYSCALL, *PSYSCALL;
+
+/*!
+ * @brief
+ *  perform indirect syscall
+ *
+ * @param ...
+ *  parameters of the syscall
+ *
+ * @return
+ *  return status of the syscall
+ */
+EXTERN_C NTSTATUS SyscallIndirect(
+    IN OUT OPTIONAL ... // args
+);
+
+/*!
+ * @brief
+ *  perform direct syscall
+ *
+ * @param ...
+ *  parameters of the syscall
+ *
+ * @return
+ *  return status of the syscall
+ */
+EXTERN_C NTSTATUS SyscallDirect(
+    IN OUT OPTIONAL ... // args
+);
+
 typedef struct _INSTANCE {
+    ULONG Context;
+
     PSYSCALL Syscall;
 
     //
@@ -217,6 +251,8 @@ consteval FUNCTION_HASH H_FUNC(
 // functions
 //
 namespace Imperium {
+    PINSTANCE get_instance();
+
     namespace ldr {
         /*!
          * 5pider implementation, credits go to him
@@ -279,7 +315,12 @@ namespace Imperium {
          * @return
          *  return value of win32 call
          */
-        template<typename Func, class... Args>
+        template
+        <
+            typename Func,
+            class
+            ...
+            Args>
         ALWAYS_INLINE auto call( FUNCTION_HASH FuncHash, Args... args ) {
             PVOID Module   = ldr::module( FuncHash.Module );
             Func  Function = ldr::function( Module, FuncHash.Function );
@@ -335,7 +376,9 @@ namespace Imperium {
          * @param Size
          *  the size of the buffer
          */
-        template<typename T>
+        template
+        <
+            typename T>
         ALWAYS_INLINE VOID set(
             PVOID Out,
             T     In,
@@ -453,7 +496,9 @@ namespace Imperium {
          * @param str
          *	buffer to convert to uppercase
          */
-        template<typename T>
+        template
+        <
+            typename T>
         ALWAYS_INLINE VOID upper(
             IN OUT T str
         ) {
@@ -474,7 +519,9 @@ namespace Imperium {
          * @param size
          *	size of the string
          */
-        template<typename T>
+        template
+        <
+            typename T>
         ALWAYS_INLINE VOID upper(
             IN OUT T str,
             IN ULONG size
@@ -502,7 +549,9 @@ namespace Imperium {
          * @return
          *  true if the strings are the same otherwise false
          */
-        template<typename T>
+        template
+        <
+            typename T>
         ALWAYS_INLINE BOOL compare(
             IN T str1,
             IN T str2
@@ -535,7 +584,9 @@ namespace Imperium {
          * @return
          *  true if the strings are the same otherwise false
          */
-        template<typename T>
+        template
+        <
+            typename T>
         ALWAYS_INLINE BOOL compare(
             IN T     str1,
             IN T     str2,
@@ -572,7 +623,9 @@ namespace Imperium {
          * @return
          *  length of the string
          */
-        template<typename T>
+        template
+        <
+            typename T>
         ALWAYS_INLINE ULONG len(
             T str
         ) {
@@ -627,9 +680,64 @@ namespace Imperium {
          * @return
          *  return value of syscall
          */
-        template<typename Func, class... Args>
-        ALWAYS_INLINE NTSTATUS call( FUNCTION_HASH FuncHash, Args... args ) {
+        template
+        <
+            typename Func,
+            class
+            ...
+            Args>
+        ALWAYS_INLINE NTSTATUS call(
+            FUNCTION_HASH FuncHash,
+            Args...       args
+        ) {
             return win32::call< Func >( FuncHash, args... );
+        }
+
+        template
+        <typename Func, class... Args>
+        ALWAYS_INLINE NTSTATUS indirect(
+            FUNCTION_HASH FuncHash,
+            Args...       args
+        ) {
+            SYSCALL Syscall = { 0 };
+
+            //
+            // resolve the syscall
+            //
+            resolve( FuncHash, &Syscall );
+
+            //
+            // set the syscall data in the instance
+            //
+            Imperium::get_instance()->Syscall = &Syscall;
+
+            //
+            // perform indirect syscall
+            //
+            return SyscallIndirect( std::forward< Args >( args )... );
+        }
+
+        template<typename Func, class... Args>
+        ALWAYS_INLINE NTSTATUS direct(
+            FUNCTION_HASH FuncHash,
+            Args...       args
+        ) {
+            SYSCALL Syscall = { 0 };
+
+            //
+            // resolve the syscall
+            //
+            resolve( FuncHash, &Syscall );
+
+            //
+            // set the syscall data in the instance
+            //
+            Imperium::get_instance()->Syscall = &Syscall;
+
+            //
+            // perform indirect syscall
+            //
+            return SyscallDirect( std::forward< Args >( args )... );
         }
     }
 }
