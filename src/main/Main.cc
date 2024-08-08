@@ -13,7 +13,13 @@ FUNC VOID Main(
     IO_STATUS_BLOCK   IoStatusBlock   = { 0 };
     SYSCALL           SysNtCreateFile = { 0 };
     BYTE              Buffer[ 4 ]     = { 1, 2, 3, 4 };
+    CHAR              String[ ]       = "noah";
 
+    Imperium::util::string::upper( String );
+
+    PRINTF( "String: %s %d\n", String, Imperium::util::string::len( "NOAH" ) );
+
+    /*
     PVOID Module = Imperium::ldr::module( H_STR( "kernel32.dll" ) );
 
     PVOID Address = Imperium::win32::call< fnGetModuleHandleA >(
@@ -21,46 +27,28 @@ FUNC VOID Main(
         "kernel32.dll"
     );
 
-    PRINTF( "Kernel32 is at 0x%08X 0x%08X\n", Address, Module );
-
-    /*
-    Self->Syscall = &SysNtCreateFile;
-
-    Message = NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer;
-
-    if ( ! NT_SUCCESS( NtStatus = SYSCALL_RESOLVE( HASH_STR( "NtCreateFile" ), Self->Syscall ) ) ) {
-        PRINTF_ERROR( "SyscallResolve failed with error: 0x%08X\n", NtStatus );
+    if ( ! NT_SUCCESS( NtStatus = Imperium::syscall::resolve(H_FUNC("ntdll!NtCreateFile"), & SysNtCreateFile) ) ) {
+        PRINTF_ERROR( "Failed to resolve SysNtCreateFile with error: 0x%08X\n", NtStatus );
+        return;
     }
-
-    PRINTF_INFO( "Hash of NtCreateFile 0x%08X\n", HASH_STR( "NtCreateFile" ) );
-    PRINTF_INFO( "Address of NtCreateFile: 0x%08X\n", Self->Syscall->Address );
-    PRINTF_INFO( "SSN of NtCreateFile: 0x%X\n", Self->Syscall->Ssn );
 
     InitializeObjectAttributes( &ObjAttrs, &Path, OBJ_CASE_INSENSITIVE, NULL, NULL );
 
-    if ( ! NT_SUCCESS( NtStatus = SYSCALL_INVOKE(
-        Self->Syscall,
-        &File,
-        FILE_GENERIC_READ,
-        &ObjAttrs,
-        &IoStatusBlock,
-        NULL,
-        FILE_ATTRIBUTE_NORMAL,
-        FILE_SHARE_READ,
-        FILE_OPEN,
-        FILE_SYNCHRONOUS_IO_NONALERT,
-        NULL,
-        0
+    if ( ! NT_SUCCESS( NtStatus = Imperium::syscall::call<fnNtCreateFile>(
+        H_FUNC("ntdll!NtCreateFile"),
+        &File, FILE_GENERIC_READ, &ObjAttrs, &IoStatusBlock, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0
     ) ) ) {
         PRINT_NT_ERROR( "NtCreateFile", NtStatus );
+        return;
     }
 
-    PRINTF( "NtStatus: 0x%08X\nFile: 0x%03X", NtStatus, File );
+    PRINTF( "NtCreateFile SSN: 0x%X\n", SysNtCreateFile.Ssn );
+    PRINTF( "NtCreateFile Address: 0x%X\n", SysNtCreateFile.Address );
+    PRINTF( "Kernel32 is at 0x%08X 0x%08X\n", Address, Module );
     */
 
     //
     // pop da message
     //
-    //Self->Win32.MessageBoxW( NULL, Message, L"What I miss", MB_OK );
     PRINTF_INFO( "[BUILD::%s] Execution succeeded!", __TIME__ );
 }

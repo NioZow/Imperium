@@ -109,13 +109,12 @@ EXTERN_C PVOID __Instance;
 //
 // string
 //
-#define INIT_UNICODE_STRING( wstr ) { .Length = sizeof(wstr) - sizeof(WCHAR), .MaximumLength = sizeof(wstr), .Buffer = wstr }
-#define INIT_ANSI_STRING( str )     { .Length = sizeof(str) - sizeof(CHAR), .MaximumLength = sizeof(str), .Buffer = str }
+#define INIT_ANSI_STRING( str )     { .Length = sizeof( str ) - sizeof( CHAR ), .MaximumLength = sizeof( str ), .Buffer = str }
+#define INIT_UNICODE_STRING( wstr ) { .Length = sizeof( wstr ) - sizeof( WCHAR ), .MaximumLength = sizeof( wstr ), .Buffer = wstr }
 
 typedef struct _FUNCTION_HASH {
-    // both are hashes
-    ULONG Module;
-    ULONG Function;
+    ULONG Module;   // module hash
+    ULONG Function; // function hash
 } FUNCTION_HASH, *PFUNCTION_HASH;
 
 typedef struct _BUFFER {
@@ -136,83 +135,35 @@ typedef struct _INSTANCE {
 } INSTANCE, *PINSTANCE;
 
 //
-// forward declarations
-//
-namespace Imperium {
-    namespace crypto {
-        template<typename T>
-        ALWAYS_INLINE constexpr ULONG hash_string(
-            IN T     String,
-            IN ULONG Length
-        );
-    }
-
-    namespace ldr {
-        /*!
-         * 5pider implementation, credits go to him
-         *
-         * @brief
-         *  get the address of a module
-         *
-         * @param ModuleHash
-         *  hash of the module to get
-         *
-         * @return
-         *  address of the DLL base ( NULL if not found )
-         */
-        PVOID module(
-            IN ULONG Hash
-        );
-
-        /*!
-         * 5pider implementation, credits go to him
-         *
-         * @brief
-         *  load the address of a function from base DLL address
-         *
-         * @param Module
-         *  base address of the DLL
-         *
-         * @param FunctionHash
-         *  hash of the function to get the address of
-         *
-         * @return
-         *  address of the function ( NULL if not found )
-         */
-        PVOID function(
-            IN PVOID Library,
-            IN ULONG Function
-        );
-    }
-
-    namespace io {
-        /*!
-         * take from havoc, credits go to 5pider
-         *
-         * @brief
-         *  custom printf implementation
-         *
-         * @param fmt
-         *  format of the string
-         *
-         * @param ...
-         *  printf parameters
-         */
-        VOID printf(
-            IN PCSTR fmt,
-            ...
-        );
-    }
-}
-
-//
 // consteval hashing
 //
 template<typename T>
 consteval ULONG H_STR(
     IN T String
 ) {
-    return Imperium::crypto::hash_string< T >( String, 0xFFFFFFFF );
+    ULONG  Hash = { 0 };
+    USHORT Char = { 0 };
+
+    Hash = RANDOM_KEY;
+
+    if ( ! String ) {
+        return 0;
+    }
+
+    do {
+        Char = *String;
+
+        //
+        // turn the character to uppercase
+        //
+        if ( Char >= 'a' && Char <= 'z' ) {
+            Char -= 0x20;
+        }
+
+        Hash = ( ( Hash << SEED ) + Hash ) + Char;
+    } while ( *( ++String ) );
+
+    return Hash;
 }
 
 consteval FUNCTION_HASH H_FUNC(
@@ -266,6 +217,44 @@ consteval FUNCTION_HASH H_FUNC(
 // functions
 //
 namespace Imperium {
+    namespace ldr {
+        /*!
+         * 5pider implementation, credits go to him
+         *
+         * @brief
+         *  get the address of a module
+         *
+         * @param ModuleHash
+         *  hash of the module to get
+         *
+         * @return
+         *  address of the DLL base ( NULL if not found )
+         */
+        PVOID module(
+            IN ULONG Hash
+        );
+
+        /*!
+         * 5pider implementation, credits go to him
+         *
+         * @brief
+         *  load the address of a function from base DLL address
+         *
+         * @param Module
+         *  base address of the DLL
+         *
+         * @param FunctionHash
+         *  hash of the function to get the address of
+         *
+         * @return
+         *  address of the function ( NULL if not found )
+         */
+        PVOID function(
+            IN PVOID Library,
+            IN ULONG Function
+        );
+    }
+
     namespace win32 {
         /*!
          * @brief
@@ -286,7 +275,9 @@ namespace Imperium {
          *
          * @param args
          *  args to pass to the function
+         *
          * @return
+         *  return value of win32 call
          */
         template<typename Func, class... Args>
         ALWAYS_INLINE auto call( FUNCTION_HASH FuncHash, Args... args ) {
@@ -298,36 +289,34 @@ namespace Imperium {
     }
 
     namespace crypto {
-        template<typename T>
-        ALWAYS_INLINE constexpr ULONG hash_string(
-            IN T     String,
+        ULONG hash_string(
+            IN PCWSTR String,
+            IN ULONG  Length
+        );
+
+        ULONG hash_string(
+            IN PCSTR String,
             IN ULONG Length
-        ) {
-            ULONG  Hash = { 0 };
-            USHORT Char = { 0 };
-            ULONG  Cnt  = { 0 };
+        );
+    }
 
-            Hash = RANDOM_KEY;
-
-            if ( ! String ) {
-                return 0;
-            }
-
-            do {
-                Char = *String;
-
-                //
-                // turn the character to uppercase
-                //
-                if ( Char >= 'a' && Char <= 'z' ) {
-                    Char -= 0x20;
-                }
-
-                Hash = ( ( Hash << SEED ) + Hash ) + Char;
-            } while ( ++Cnt < Length && *( ++String ) );
-
-            return Hash;
-        }
+    namespace io {
+        /*!
+         * took from havoc, credits go to 5pider
+         *
+         * @brief
+         *  custom printf implementation
+         *
+         * @param fmt
+         *  format of the string
+         *
+         * @param ...
+         *  printf parameters
+         */
+        VOID printf(
+            IN PCSTR fmt,
+            ...
+        );
     }
 
     namespace mem {
@@ -453,6 +442,194 @@ namespace Imperium {
                 H_FUNC( "ntdll!RtlReAllocateHeap" ),
                 NtProcessHeap(), HEAP_ZERO_MEMORY, ptr, size
             );
+        }
+    }
+
+    namespace util::string {
+        /*!
+         * @brief
+         *	convert a string to uppercase
+         *
+         * @param str
+         *	buffer to convert to uppercase
+         */
+        template<typename T>
+        ALWAYS_INLINE VOID upper(
+            IN OUT T str
+        ) {
+            do {
+                if ( *str >= 'a' && *str <= 'z' ) {
+                    *str -= 0x20;
+                }
+            } while ( *( ++str ) );
+        }
+
+        /*!
+         * @brief
+         *	convert a string to uppercase
+         *
+         * @param str
+         *	buffer to convert to uppercase
+         *
+         * @param size
+         *	size of the string
+         */
+        template<typename T>
+        ALWAYS_INLINE VOID upper(
+            IN OUT T str,
+            IN ULONG size
+        ) {
+            for ( int i = 0 ; i < size ; i++ ) {
+                if ( str[ i ] >= 'a' && str[ i ] <= 'z' ) {
+                    str[ i ] -= 0x20;
+                }
+            }
+        }
+
+        /*!
+         * @brief
+         *  compare 2 strings
+         *
+         * @tparam T
+         *  type of the strings
+         *
+         * @param str1
+         *  first string
+         *
+         * @param str2
+         *  second string
+         *
+         * @return
+         *  true if the strings are the same otherwise false
+         */
+        template<typename T>
+        ALWAYS_INLINE BOOL compare(
+            IN T str1,
+            IN T str2
+        ) {
+            do {
+                if ( *str1 != *str2 ) return FALSE;
+            } while ( *( ++str1 ) && *( ++str2 ) );
+
+            if ( ! *str1 ) ++str2;
+
+            return *str1 == *str2;
+        }
+
+        /*!
+         * @brief
+         *  compare 2 strings
+         *
+         * @tparam T
+         *  type of the strings
+         *
+         * @param str1
+         *  first string
+         *
+         * @param str2
+         *  second string
+         *
+         * @param len
+         *  length of the strings
+         *
+         * @return
+         *  true if the strings are the same otherwise false
+         */
+        template<typename T>
+        ALWAYS_INLINE BOOL compare(
+            IN T     str1,
+            IN T     str2,
+            IN ULONG len
+        ) {
+            int i = 0;
+
+            do {
+                if ( *str1 != *str2 ) return FALSE;
+            } while ( ++i < len && *( ++str1 ) && *( ++str2 ) );
+
+            if ( ! *str1 ) ++str2;
+
+            return *str1 == *str2;
+        }
+
+
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+        /*!
+         * the above disables optimisation otherwise it might call strlen
+         * resolving will fail and the program will crash
+         * thanks @C5pider for figuring this out so quickly
+         *
+         * @brief
+         *  get the length of a string
+         *
+         * @tparam T
+         *  type of the string
+         *
+         * @param str
+         *  string to get the length of
+         *
+         * @return
+         *  length of the string
+         */
+        template<typename T>
+        ALWAYS_INLINE ULONG len(
+            T str
+        ) {
+            int cnt = 0;
+
+            do {
+                cnt++;
+            } while ( *( ++str ) );
+
+            return cnt;
+        }
+#pragma GCC pop_options
+    }
+
+    namespace syscall {
+        /*!
+         * @brief
+         *  resolve syscall information (SSN, address...)
+         *
+         * @param SyscallHash
+         *  hash of the syscall
+         *
+         * @param Syscall
+         *  struct that will receive the address and ssn of the syscall
+         *
+         * @return
+         *  pointer to a data structure containing information about the syscall
+         */
+        NTSTATUS resolve(
+            FUNCTION_HASH SyscallHash,
+            PSYSCALL      Syscall
+        );
+
+        /*!
+         * @brief
+         *  call a nt function
+         *  just forward the call to win32::call
+         *
+         * @tparam Func
+         *  type of the function
+         *
+         * @tparam Args
+         *  arguments to be passed to the function
+         *  only the right number of arguments will be accepted
+         *
+         * @param FuncHash
+         *  the hash of the dll and the hash of the func's name
+         *
+         * @param args
+         *  args to pass to the function
+         *
+         * @return
+         *  return value of syscall
+         */
+        template<typename Func, class... Args>
+        ALWAYS_INLINE NTSTATUS call( FUNCTION_HASH FuncHash, Args... args ) {
+            return win32::call< Func >( FuncHash, args... );
         }
     }
 }
