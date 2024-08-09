@@ -72,5 +72,15 @@ typedef NTSTATUS ( NTAPI*fnNtCreateFile )(
     IN ULONG                   EaLength
 );
 
+typedef PVOID ( WINAPI*fnLoadLibraryA )(
+    PCSTR Module
+);
+
+typedef INT ( WINAPI*fnMessageBoxA )(
+    IN OPTIONAL HWND   hWnd,
+    IN OPTIONAL LPCSTR lpText,
+    IN OPTIONAL LPCSTR lpCaption,
+    IN UINT            uType
+);
 
 #endif //COMMON_COMMON_H

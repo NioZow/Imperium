@@ -7,7 +7,6 @@ global SyscallIndirect
 global SyscallDirect
 
 [section .text$B]
-
     ; perform indirect syscalls
     SyscallIndirect:
         mov r15, 1
@@ -50,7 +49,6 @@ global SyscallDirect
 
     ; execute the syscall now that we got its data
     SyscallExec:
-
         ; pointer to the syscall structure
         ; + 0x8 because the context structure is padded with 4 bytes to preserve alignment
         mov r14, [r13 + 0x8]
@@ -72,7 +70,13 @@ global SyscallDirect
     ret
 
     SyscallExecIndirect:
-        jmp QWORD [r14]
+        ; r14 contains the base address of the syscall
+        ; not the address of the syscall instructions
+        ; the syscall instruction is always 0x12 after the base address
+        ; jump to it
+        mov r14, [r14]
+        add r14, 0x12
+        jmp QWORD r14
     ret
 
     SyscallExecDirect:

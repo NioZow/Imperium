@@ -1,23 +1,281 @@
 #include <common/Imperium.h>
 
 namespace Imperium {
-    FUNC PINSTANCE get_instance() {
-        PINSTANCE Instance = { 0 };
-        ULONG     Context  = { 0 };
+    namespace win32 {
+        /*!
+         * @brief
+         *  get the address of a function
+         *
+         * @param SymHash
+         *  hashed symbol of the func
+         *
+         * @param Flags
+         *  flags
+         *
+         * @return
+         *  symbol
+         */
+        FUNC PSYMBOL resolve(
+            SYMBOL_HASH SymHash,
+            ULONG       Flags
+        ) {
+            STARDUST_INSTANCE
 
-        for ( int i = 0 ; i < NtCurrentPeb()->NumberOfHeaps ; i++ ) {
-            Context = ( ( PINSTANCE ) ( NtCurrentPeb()->ProcessHeaps[ i ] ) )->Context;
+            NTSTATUS NtStatus = { 0 };
+            PSYMBOL  Sym      = { 0 };
+            PVOID    Module   = { 0 };
+            SYSCALL  Func     = { 0 };
 
-            if ( Context == 0xc0debabe ) {
-                Instance = NtCurrentPeb()->ProcessHeaps[ i ];
-                break;
+            //
+            // check if the function had already been resolved before
+            //
+            if ( ! ( Sym = instance::symbol::get( &SymHash ) ) ||
+                 ( ! Sym->Syscall.Ssn && Flags & SymbolSyscall )
+            ) {
+                //
+                // the function has not been resolved before
+                //
+                if ( Flags & SymbolSyscall ) {
+                    //
+                    // resolve the syscall
+                    //
+                    if ( ! NT_SUCCESS( NtStatus = syscall::resolve( SymHash, &Func ) ) ) {
+                        return nullptr;
+                    }
+                } else {
+                    //
+                    // resolve the library from the peb
+                    //
+                    if ( ! ( Module = ldr::module( SymHash.Module ) ) ) {
+                        //
+                        // if it fails call LoadLibraryA (can't for now string hashed)
+                        // todo: add support for that instead of loading the library to have it in peb
+                        //
+                        return nullptr;
+                    }
+
+                    //
+                    // resolve the func
+                    //
+                    if ( ! ( Func.Address = ldr::function( Module, SymHash.Function ) ) ) {
+                        //
+                        // failed to resolve the func
+                        //
+                        return nullptr;
+                    }
+                }
+
+                //
+                // store the function for later use
+                //
+                if ( ! ( Sym = instance::symbol::add( SymHash, Func.Address, Func.Ssn ) ) ) {
+                    return nullptr;
+                }
             }
+
+            //
+            // add the syscall to the instance
+            //
+            if ( Flags & SymbolSyscall && Flags & SyscallAddInstance ) {
+                Instance()->Syscall = &Sym->Syscall;
+            }
+
+            return Sym;
+        }
+    }
+
+    namespace instance {
+        /*!
+         * @brief
+         *  get a pointer to the instance by reading the peb
+         *  this one in located in the process heaps table
+         *
+         * @return
+         *  pointer to the instance
+         */
+        FUNC PINSTANCE get() {
+            PINSTANCE Instance = { 0 };
+            ULONG     Context  = { 0 };
+
+            for ( int i = 0 ; i < NtCurrentPeb()->NumberOfHeaps ; i++ ) {
+                Context = ( ( PINSTANCE ) ( NtCurrentPeb()->ProcessHeaps[ i ] ) )->Context;
+
+                if ( Context == 0xc0debabe ) {
+                    Instance = NtCurrentPeb()->ProcessHeaps[ i ];
+                    break;
+                }
+            }
+
+            return Instance;
         }
 
-        return Instance;
+        namespace symbol {
+            /*!
+             * @brief
+             *  get a pointer to a function info if it is already stored in memory
+             *
+             * @return
+             *  function address struct
+             */
+            FUNC PSYMBOL get(
+                PSYMBOL_HASH FuncHash
+            ) {
+                STARDUST_INSTANCE
+
+                PSYMBOL FuncAddr = Instance()->Symbol;
+
+                //
+                // if there is no function loaded quit now
+                //
+                if ( ! Instance()->Symbol ) {
+                    return NULL;
+                }
+
+                //
+                // iterate through all loaded functions
+                //
+                do {
+                    //
+                    // search if a function has the same hashes and so is the same
+                    //
+                    if ( FuncAddr->FunctionHash == FuncHash->Function &&
+                         FuncAddr->ModuleHash == FuncHash->Module
+                    ) {
+                        break;
+                    }
+                } while ( ( FuncAddr = FuncAddr->Next ) );
+
+                return FuncAddr;
+            }
+
+            /*!
+             * @brief
+             *  store the function to load only once
+             *
+             * @param SymHash
+             *  hashes of the func
+             *
+             * @param SymAddr
+             *  addr of the module/function
+             *
+             * @param Ssn
+             *  ssn of the syscall
+             */
+            FUNC PSYMBOL add(
+                SYMBOL_HASH SymHash,
+                PVOID       SymAddr,
+                USHORT      Ssn = 0
+            ) {
+                STARDUST_INSTANCE
+
+                PSYMBOL *         Sym    = &Instance()->Symbol;
+                PVOID             Module = { 0 };
+                fnRtlAllocateHeap Func   = { 0 };
+
+                //
+                // get the address of the last symbol
+                //
+                while ( *Sym && ( Sym = &( *Sym )->Next ) );
+
+                //
+                // allocate the mem manually
+                // cant call mem:alloc cuz it calls win32::call
+                // creates a recursive infinite loop
+                // todo: find a better way to do this?
+                // does not fix anything still does not work
+                //
+                if ( ! ( Module = ldr::module( H_STR( "ntdll.dll" ) ) ) ) {
+                    return nullptr;
+                }
+
+                if ( ! ( Func = ldr::function( Module, H_STR( "RtlAllocateHeap" ) ) ) ) {
+                    return nullptr;
+                }
+
+                *Sym = Func( NtCurrentHeap(), HEAP_ZERO_MEMORY, sizeof( SYMBOL ) );
+
+                //
+                // set the symbol
+                //
+                ( *Sym )->FunctionHash = SymHash.Function;
+                ( *Sym )->ModuleHash   = SymHash.Module;
+                ( *Sym )->Address      = SymAddr;
+                ( *Sym )->Syscall.Ssn  = Ssn;
+
+                return *Sym;
+            }
+        }
+    }
+
+    namespace mem {
+        /*!
+         * @brief
+         *  allocate some memory from the heap
+         *  wrapper for ntdll!RtlAllocateHeap
+         *
+         * @param Size
+         *  number of bytes to allocate
+         */
+        FUNC PVOID alloc(
+            ULONG size
+        ) {
+            return win32::call< fnRtlAllocateHeap >(
+                H_FUNC( "ntdll!RtlAllocateHeap" ),
+                NtProcessHeap(), HEAP_ZERO_MEMORY, size
+            );
+        }
+
+        /*!
+         * @brief
+         *  ptr some memory from the heap
+         *  wrapper for ntdll!RtlFreeHeap
+         *
+         * @param ptr
+         *  pointer to memory that needs to be freed
+         */
+        FUNC VOID free(
+            PVOID ptr
+        ) {
+            win32::call< fnRtlFreeHeap >(
+                H_FUNC( "ntdll!RtlFreeHeap" ),
+                NtProcessHeap(), 0, ptr
+            );
+        }
+
+        /*!
+         * @brief
+         *  reallocate some memory from the heap
+         *  wrapper for ntdll!RtlFreeHeap
+         *
+         * @param ptr
+         *  allocated memory buffer
+         *
+         * @param size
+         *  size to allocate
+         *
+         * @return
+         *  pointer to the reallocated memory
+         */
+        FUNC PVOID realloc(
+            PVOID ptr,
+            ULONG size
+        );
     }
 
     namespace crypto {
+        /*!
+         * @brief
+         *  hash a string
+         *
+         * @param String
+         *  string to hash
+         *
+         * @param Length
+         *  length of the string
+         *
+         * @return
+         *  hash
+         */
         FUNC ULONG hash_string(
             IN PCWSTR String,
             IN ULONG  Length
@@ -48,6 +306,19 @@ namespace Imperium {
             return Hash;
         }
 
+        /*!
+         * @brief
+         *  hash a string
+         *
+         * @param String
+         *  string to hash
+         *
+         * @param Length
+         *  length of the string
+         *
+         * @return
+         *  hash
+         */
         FUNC ULONG hash_string(
             IN PCSTR String,
             IN ULONG Length
@@ -105,7 +376,7 @@ namespace Imperium {
             for ( ; Head != Entry ; Entry = Entry->Flink ) {
                 Data = C_PTR( Entry );
 
-                if ( Imperium::crypto::hash_string( Data->BaseDllName.Buffer, Data->BaseDllName.Length / 2 ) == Hash ) {
+                if ( crypto::hash_string( Data->BaseDllName.Buffer, Data->BaseDllName.Length / 2 ) == Hash ) {
                     return Data->DllBase;
                 }
             }
@@ -246,9 +517,9 @@ namespace Imperium {
             // get the handle to the output console
             //
             if ( ! Instance()->ConsoleOutput ) {
-                Imperium::win32::call< fnAttachConsole >( H_FUNC( "kernel32!AttachConsole" ), ATTACH_PARENT_PROCESS );
+                win32::call< fnAttachConsole >( H_FUNC( "kernel32!AttachConsole" ), ATTACH_PARENT_PROCESS );
 
-                if ( ! ( Instance()->ConsoleOutput = Imperium::win32::call< fnGetStdHandle >( H_FUNC( "kernel32!GetStdHandle" ), STD_OUTPUT_HANDLE ) ) ) {
+                if ( ! ( Instance()->ConsoleOutput = win32::call< fnGetStdHandle >( H_FUNC( "kernel32!GetStdHandle" ), STD_OUTPUT_HANDLE ) ) ) {
                     return;
                 }
             }
@@ -258,24 +529,24 @@ namespace Imperium {
             //
             // allocate space for the final string
             //
-            OutputSize   = Imperium::win32::call< fnVsnprintf >( H_FUNC( "msvcrt!vsnprintf" ), NULL, 0, fmt, VaListArg ) + 1;
-            OutputString = Imperium::mem::alloc( OutputSize );
+            OutputSize   = win32::call< fnVsnprintf >( H_FUNC( "msvcrt!vsnprintf" ), NULL, 0, fmt, VaListArg ) + 1;
+            OutputString = mem::alloc( OutputSize );
 
             //
             // write the final string
             //
-            Imperium::win32::call< fnVsnprintf >( H_FUNC( "msvcrt!vsnprintf" ), OutputString, OutputSize, fmt, VaListArg );
+            win32::call< fnVsnprintf >( H_FUNC( "msvcrt!vsnprintf" ), OutputString, OutputSize, fmt, VaListArg );
 
             //
             // write it to the console
             //
-            Imperium::win32::call< fnWriteConsoleA >( H_FUNC( "kernel32!WriteConsoleA" ), Instance()->ConsoleOutput, OutputString, OutputSize, NULL, NULL );
+            win32::call< fnWriteConsoleA >( H_FUNC( "kernel32!WriteConsoleA" ), Instance()->ConsoleOutput, OutputString, OutputSize, NULL, NULL );
 
             //
             // free the string
             //
-            Imperium::mem::zero( OutputString, OutputSize );
-            Imperium::mem::free( OutputString );
+            mem::zero( OutputString, OutputSize );
+            mem::free( OutputString );
 
             va_end( VaListArg );
         }
@@ -296,8 +567,8 @@ namespace Imperium {
          *  pointer to a data structure containing information about the syscall
          */
         FUNC NTSTATUS resolve(
-            IN FUNCTION_HASH SyscallHash,
-            OUT PSYSCALL     Syscall
+            IN SYMBOL_HASH SyscallHash,
+            OUT PSYSCALL   Syscall
         ) {
             PBYTE SyscallAddr      = { 0 };
             PBYTE FirstSyscallAddr = { 0 };
@@ -342,8 +613,9 @@ namespace Imperium {
 
             //
             // calculate the SSN
+            // and add the address
             //
-            Syscall->Address = SyscallAddr - 0x0E;
+            Syscall->Address = SyscallAddr;
             Syscall->Ssn     = ( SyscallAddr - FirstSyscallAddr ) / 32;
 
             //

@@ -4,3 +4,4 @@ bin/obj/*.o
 .idea
 bin/*.bin
 cmake-build-debug
+build/

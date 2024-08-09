@@ -5,7 +5,6 @@
 // system headers
 //
 #include <windows.h>
-#include <stdio.h>
 #include <winnt.h>
 #include <ntstatus.h>
 #include <utility>
@@ -24,13 +23,17 @@ EXTERN_C ULONG __Instance_offset;
 EXTERN_C PVOID __Instance;
 
 //
-// thread/process related macros
+// pseudo handles
 //
 #define NtCurrentProcess()              ( ( HANDLE ) ( LONG_PTR ) ( -1 ) )
 #define NtCurrentThread()               ( ( HANDLE ) ( LONG_PTR ) ( -2 ) )
 #define NtCurrentProcessToken()         ( ( HANDLE ) ( LONG_PTR ) ( -4 ) )
 #define NtCurrentThreadToken()          ( ( HANDLE ) ( LONG_PTR ) ( -5 ) )
 #define NtCurrentThreadEffectiveToken() ( ( HANDLE ) ( LONG_PTR ) ( -6 ) )
+
+//
+// peb/teb related macros
+//
 #define NtLastError()                   ( NtCurrentTeb()->LastErrorValue  )
 #define NtLastStatus()	                ( NtCurrentTeb()->LastStatusValue )
 #define NtCurrentHeap()                 ( ( PVOID ) NtCurrentPeb()->ProcessHeap )
@@ -98,10 +101,16 @@ EXTERN_C PVOID __Instance;
 //
 // io macros
 //
-#define PRINTF( text, ... )             Imperium::io::printf( text, ##__VA_ARGS__ );
-#define PRINTF_DEBUG( text, ... )       PRINTF( "[DEBUG::%s::%s::%d] " text, __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ );
-#define PRINTF_INFO( text, ... )        PRINTF( "[*] " text, ##__VA_ARGS__ );
-#define PRINTF_ERROR( text, ... )       PRINTF_DEBUG( "[!] " text, ##__VA_ARGS__ );
+#define PRINTF( text, ... )             Imperium::io::printf( text, ##__VA_ARGS__ )
+
+#ifdef IMPERIUM_DEBUG
+#define PRINTF_INFO( text, ... )        PRINTF( "[INFO::%s::%s::%d] " text "\n", __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ )
+#define PRINTF_ERROR( text, ... )       PRINTF( "[ERROR::%s::%s::%d] " text "\n", __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ )
+#else
+#define PRINTF_INFO( text, ... )        PRINTF( "[*] " text "\n", ##__VA_ARGS__ )
+#define PRINTF_ERROR( text, ... )       PRINTF( "[!] " text "\n", ##__VA_ARGS__ )
+#endif
+
 #define PRINT_NT_ERROR( ntapi, status ) PRINTF_ERROR( "%s failed with error: 0x%08X\n", ntapi, status )
 #define PRINT_WIN32_ERROR( win32api )   PRINTF_ERROR( "%s failed with error: %ld\n", win32api, NtLastError() )
 
@@ -111,21 +120,10 @@ EXTERN_C PVOID __Instance;
 #define INIT_ANSI_STRING( str )     { .Length = sizeof( str ) - sizeof( CHAR ), .MaximumLength = sizeof( str ), .Buffer = str }
 #define INIT_UNICODE_STRING( wstr ) { .Length = sizeof( wstr ) - sizeof( WCHAR ), .MaximumLength = sizeof( wstr ), .Buffer = wstr }
 
-typedef struct _FUNCTION_HASH {
-    ULONG Module;   // module hash
-    ULONG Function; // function hash
-} FUNCTION_HASH, *PFUNCTION_HASH;
 
-typedef struct _BUFFER {
-    PVOID Buffer;
-    ULONG Length;
-} BUFFER, *PBUFFER;
-
-typedef struct _SYSCALL {
-    PVOID  Address;
-    USHORT Ssn;
-} SYSCALL, *PSYSCALL;
-
+//
+// extern functions
+//
 /*!
  * @brief
  *  perform indirect syscall
@@ -154,10 +152,59 @@ EXTERN_C NTSTATUS SyscallDirect(
     IN OUT OPTIONAL ... // args
 );
 
+//
+// enumm definition
+//
+typedef enum _WIN32_RESOLVE_FLAGS : ULONG {
+    SymbolSyscall      = 0x01,
+    SyscallAddInstance = 0x02,
+} WIN32_RESOLVE_FLAGS, *PWIN32_RESOLVE_FLAGS;
+
+//
+// structure definition
+//
+typedef struct _SYMBOL_HASH {
+    ULONG Module;   // module hash
+    ULONG Function; // function hash
+} SYMBOL_HASH, *PSYMBOL_HASH;
+
+typedef struct _BUFFER {
+    PVOID Buffer;
+    ULONG Length;
+} BUFFER, *PBUFFER;
+
+typedef struct _SYSCALL {
+    PVOID  Address;
+    USHORT Ssn;
+} SYSCALL, *PSYSCALL;
+
+typedef struct _SYMBOL {
+    union {
+        PVOID Address;
+
+        SYSCALL Syscall;
+    };
+
+    ULONG           ModuleHash;
+    ULONG           FunctionHash;
+    struct _SYMBOL *Next;
+} SYMBOL, *PSYMBOL;
+
 typedef struct _INSTANCE {
+    //
+    // context to find our instance in memory
+    //
     ULONG Context;
 
+    //
+    // syscall structure for the current syscall to be executed
+    //
     PSYSCALL Syscall;
+
+    //
+    // store already loaded functions
+    //
+    PSYMBOL Symbol;
 
     //
     // base address and size
@@ -171,21 +218,34 @@ typedef struct _INSTANCE {
 //
 // consteval hashing
 //
+/*!
+ * @brief
+ *  hash a string at compile time
+ *
+ * @tparam T
+ *  type of the string
+ *
+ * @param str
+ *  string to hash
+ *
+ * @return
+ *  hash of the string
+ */
 template<typename T>
 consteval ULONG H_STR(
-    IN T String
+    IN T str
 ) {
     ULONG  Hash = { 0 };
     USHORT Char = { 0 };
 
     Hash = RANDOM_KEY;
 
-    if ( ! String ) {
+    if ( ! str ) {
         return 0;
     }
 
     do {
-        Char = *String;
+        Char = *str;
 
         //
         // turn the character to uppercase
@@ -195,19 +255,31 @@ consteval ULONG H_STR(
         }
 
         Hash = ( ( Hash << SEED ) + Hash ) + Char;
-    } while ( *( ++String ) );
+    } while ( *( ++str ) );
 
     return Hash;
 }
 
-consteval FUNCTION_HASH H_FUNC(
+/*!
+ * @brief
+ *  get the hashed function & module name
+ *  of a string at compile time
+ *  fmt: user32!MessageBoxA
+ *
+ * @param Symbol
+ *  string to hash
+ *
+ * @return
+ *  hash of the function & module
+ */
+consteval SYMBOL_HASH H_FUNC(
     PCSTR Symbol
 ) {
-    PCSTR         Func       = Symbol;
-    CHAR          Mod[ 100 ] = { 0 };
-    FUNCTION_HASH FuncHash   = { 0 };
-    ULONG         Size       = { 0 };
-    INT           i          = { 0 };
+    PCSTR       Func       = Symbol;
+    CHAR        Mod[ 100 ] = { 0 };
+    SYMBOL_HASH FuncHash   = { 0 };
+    ULONG       Size       = { 0 };
+    INT         i          = { 0 };
 
     //
     // find the offset of the '!'
@@ -251,7 +323,61 @@ consteval FUNCTION_HASH H_FUNC(
 // functions
 //
 namespace Imperium {
-    PINSTANCE get_instance();
+    namespace io {
+        /*!
+         * took from havoc, credits go to 5pider
+         *
+         * @brief
+         *  custom printf implementation
+         *
+         * @param fmt
+         *  format of the string
+         *
+         * @param ...
+         *  printf parameters
+         */
+        VOID printf(
+            IN PCSTR fmt,
+            ...
+        );
+    }
+
+    namespace instance {
+        /*!
+         * @brief
+         *  get a pointer to the instance by reading the peb
+         *  this one in located in the process heaps table
+         *
+         * @return
+         *  pointer to the instance
+         */
+        PINSTANCE get();
+
+        namespace symbol {
+            /*!
+             * @brief
+             *  store the function to load only once
+             *
+             * @param SymHash
+             *  hashes of the func
+             *
+             * @param SymAddr
+             *  addr of the module/function
+             *
+             * @param Ssn
+             *  ssn of the syscall
+             */
+            PSYMBOL add(
+                SYMBOL_HASH SymHash,
+                PVOID       SymAddr,
+                USHORT      Ssn = 0
+            );
+
+            PSYMBOL get(
+                PSYMBOL_HASH SymbolHash
+            );
+        }
+    }
 
     namespace ldr {
         /*!
@@ -294,6 +420,24 @@ namespace Imperium {
     namespace win32 {
         /*!
          * @brief
+         *  get the address of a function
+         *
+         * @param SymHash
+         *  hashed symbol of the func
+         *
+         * @param Flags
+         *  flags
+         *
+         * @return
+         *  symbol
+         */
+        PSYMBOL resolve(
+            SYMBOL_HASH SymHash,
+            ULONG       Flags
+        );
+
+        /*!
+         * @brief
          *  call a win32/nt function
          *
          * @tparam Func
@@ -306,7 +450,7 @@ namespace Imperium {
          *  arguments to be passed to the function
          *  only the right number of arguments will be accepted
          *
-         * @param FuncHash
+         * @param SymHash
          *  the hash of the dll and the hash of the func's name
          *
          * @param args
@@ -315,48 +459,75 @@ namespace Imperium {
          * @return
          *  return value of win32 call
          */
-        template
-        <
-            typename Func,
-            class
-            ...
-            Args>
-        ALWAYS_INLINE auto call( FUNCTION_HASH FuncHash, Args... args ) {
-            PVOID Module   = ldr::module( FuncHash.Module );
-            Func  Function = ldr::function( Module, FuncHash.Function );
+        template<typename Func, class... Args>
+        ALWAYS_INLINE auto call(
+            SYMBOL_HASH SymHash,
+            Args...     args
+        ) {
+            //
+            // resolving using win32::resolve does not work there
+            // can't figure out, i suspected this was a recursive issue
+            // with calling mem::alloc but in my test it still crash
+            //
+            PVOID Module   = ldr::module( SymHash.Module );
+            Func  Function = ldr::function( Module, SymHash.Function );
 
             return Function( std::forward< Args >( args )... );
+            /*
+            PSYMBOL Sym = { 0 };
+
+            //
+            // resolve the func
+            //
+            if ( ! ( Sym = resolve( SymHash, 0 ) ) ) {
+                //
+                // failed to resolve the function
+                // no proper error handling for now
+                //
+                //PRINTF_ERROR( "Failed to resolve symbol with module 0x%08X and function 0x%08X", SymHash.Module, SymHash.Function );
+                __debugbreak();
+            }
+
+            return ( ( Func ) Sym->Address )( std::forward< Args >( args )... );
+            */
         }
     }
 
     namespace crypto {
+        /*!
+         * @brief
+         *  hash a string
+         *
+         * @param String
+         *  string to hash
+         *
+         * @param Length
+         *  length of the string
+         *
+         * @return
+         *  hash
+         */
         ULONG hash_string(
             IN PCWSTR String,
             IN ULONG  Length
         );
 
+        /*!
+         * @brief
+         *  hash a string
+         *
+         * @param String
+         *  string to hash
+         *
+         * @param Length
+         *  length of the string
+         *
+         * @return
+         *  hash
+         */
         ULONG hash_string(
             IN PCSTR String,
             IN ULONG Length
-        );
-    }
-
-    namespace io {
-        /*!
-         * took from havoc, credits go to 5pider
-         *
-         * @brief
-         *  custom printf implementation
-         *
-         * @param fmt
-         *  format of the string
-         *
-         * @param ...
-         *  printf parameters
-         */
-        VOID printf(
-            IN PCSTR fmt,
-            ...
         );
     }
 
@@ -376,9 +547,7 @@ namespace Imperium {
          * @param Size
          *  the size of the buffer
          */
-        template
-        <
-            typename T>
+        template<typename T>
         ALWAYS_INLINE VOID set(
             PVOID Out,
             T     In,
@@ -437,14 +606,9 @@ namespace Imperium {
          * @param Size
          *  number of bytes to allocate
          */
-        INLINE PVOID alloc(
+        PVOID alloc(
             ULONG size
-        ) {
-            return win32::call< fnRtlAllocateHeap >(
-                H_FUNC( "ntdll!RtlAllocateHeap" ),
-                NtProcessHeap(), HEAP_ZERO_MEMORY, size
-            );
-        }
+        );
 
         /*!
          * @brief
@@ -454,14 +618,9 @@ namespace Imperium {
          * @param ptr
          *  pointer to memory that needs to be freed
          */
-        INLINE VOID free(
+        VOID free(
             PVOID ptr
-        ) {
-            win32::call< fnRtlFreeHeap >(
-                H_FUNC( "ntdll!RtlFreeHeap" ),
-                NtProcessHeap(), 0, ptr
-            );
-        }
+        );
 
         /*!
          * @brief
@@ -477,15 +636,10 @@ namespace Imperium {
          * @return
          *  pointer to the reallocated memory
          */
-        INLINE PVOID realloc(
+        PVOID realloc(
             PVOID ptr,
             ULONG size
-        ) {
-            return win32::call< fnRtlReAllocateHeap >(
-                H_FUNC( "ntdll!RtlReAllocateHeap" ),
-                NtProcessHeap(), HEAP_ZERO_MEMORY, ptr, size
-            );
-        }
+        );
     }
 
     namespace util::string {
@@ -496,9 +650,7 @@ namespace Imperium {
          * @param str
          *	buffer to convert to uppercase
          */
-        template
-        <
-            typename T>
+        template<typename T>
         ALWAYS_INLINE VOID upper(
             IN OUT T str
         ) {
@@ -519,9 +671,7 @@ namespace Imperium {
          * @param size
          *	size of the string
          */
-        template
-        <
-            typename T>
+        template<typename T>
         ALWAYS_INLINE VOID upper(
             IN OUT T str,
             IN ULONG size
@@ -549,9 +699,7 @@ namespace Imperium {
          * @return
          *  true if the strings are the same otherwise false
          */
-        template
-        <
-            typename T>
+        template<typename T>
         ALWAYS_INLINE BOOL compare(
             IN T str1,
             IN T str2
@@ -584,9 +732,7 @@ namespace Imperium {
          * @return
          *  true if the strings are the same otherwise false
          */
-        template
-        <
-            typename T>
+        template<typename T>
         ALWAYS_INLINE BOOL compare(
             IN T     str1,
             IN T     str2,
@@ -623,9 +769,7 @@ namespace Imperium {
          * @return
          *  length of the string
          */
-        template
-        <
-            typename T>
+        template<typename T>
         ALWAYS_INLINE ULONG len(
             T str
         ) {
@@ -655,8 +799,8 @@ namespace Imperium {
          *  pointer to a data structure containing information about the syscall
          */
         NTSTATUS resolve(
-            FUNCTION_HASH SyscallHash,
-            PSYSCALL      Syscall
+            SYMBOL_HASH SyscallHash,
+            PSYSCALL    Syscall
         );
 
         /*!
@@ -680,36 +824,46 @@ namespace Imperium {
          * @return
          *  return value of syscall
          */
-        template
-        <
-            typename Func,
-            class
-            ...
-            Args>
+        template<typename Func, class... Args>
         ALWAYS_INLINE NTSTATUS call(
-            FUNCTION_HASH FuncHash,
-            Args...       args
+            SYMBOL_HASH FuncHash,
+            Args...     args
         ) {
             return win32::call< Func >( FuncHash, args... );
         }
 
-        template
-        <typename Func, class... Args>
+        /*!
+         * @brief
+         *  perform indirect syscall
+         *
+         * @tparam Func
+         *  type of the function
+         *
+         * @tparam Args
+         *  arguments to be passed to the function
+         *  only the right number of arguments will be accepted
+         *
+         * @param SymHash
+         *  the hash of the dll and the hash of the func's name
+         *
+         * @param args
+         *  args to pass to the function
+         *
+         * @return
+         *  return value of syscall
+         */
+        template<typename Func, class... Args>
         ALWAYS_INLINE NTSTATUS indirect(
-            FUNCTION_HASH FuncHash,
-            Args...       args
+            SYMBOL_HASH SymHash,
+            Args...     args
         ) {
-            SYSCALL Syscall = { 0 };
-
             //
             // resolve the syscall
             //
-            resolve( FuncHash, &Syscall );
-
-            //
-            // set the syscall data in the instance
-            //
-            Imperium::get_instance()->Syscall = &Syscall;
+            if ( ! win32::resolve( SymHash, SymbolSyscall | SyscallAddInstance ) ) {
+                PRINTF_ERROR( "Failed to resolve symbol with module 0x%08X and function 0x%08X", SymHash.Module, SymHash.Function );
+                return STATUS_INTERNAL_ERROR;
+            }
 
             //
             // perform indirect syscall
@@ -717,25 +871,41 @@ namespace Imperium {
             return SyscallIndirect( std::forward< Args >( args )... );
         }
 
+        /*!
+         * @brief
+         *  perform direct syscall
+         *
+         * @tparam Func
+         *  type of the function
+         *
+         * @tparam Args
+         *  arguments to be passed to the function
+         *  only the right number of arguments will be accepted
+         *
+         * @param SymHash
+         *  the hash of the dll and the hash of the func's name
+         *
+         * @param args
+         *  args to pass to the function
+         *
+         * @return
+         *  return value of syscall
+         */
         template<typename Func, class... Args>
         ALWAYS_INLINE NTSTATUS direct(
-            FUNCTION_HASH FuncHash,
-            Args...       args
+            SYMBOL_HASH SymHash,
+            Args...     args
         ) {
-            SYSCALL Syscall = { 0 };
-
             //
             // resolve the syscall
             //
-            resolve( FuncHash, &Syscall );
+            if ( ! win32::resolve( SymHash, SymbolSyscall | SyscallAddInstance ) ) {
+                PRINTF_ERROR( "Failed to resolve symbol with module 0x%08X and function 0x%08X", SymHash.Module, SymHash.Function );
+                return STATUS_INTERNAL_ERROR;
+            }
 
             //
-            // set the syscall data in the instance
-            //
-            Imperium::get_instance()->Syscall = &Syscall;
-
-            //
-            // perform indirect syscall
+            // perform direct syscall
             //
             return SyscallDirect( std::forward< Args >( args )... );
         }
