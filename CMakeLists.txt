@@ -35,14 +35,11 @@ set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 # project files
 #
 file(GLOB_RECURSE IMPERIUM_SRC
-        "src/main/*.cc"
-        "src/common/*.cc"
-        "src/core/*.cc"
+        "src/*.cc"
 )
 
 file(GLOB_RECURSE IMPERIUM_INCLUDE
         "include/common/*.h"
-        "include/core/*.h"
         "include/*.h"
 )
 
