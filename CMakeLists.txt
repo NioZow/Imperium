@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(project-template CXX)
+project(Imperium CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -23,7 +23,8 @@ include_directories(include)
 #
 # compile defintions
 #
-add_compile_definitions(INDIRECT_SYSCALL)
+add_compile_definitions(IMPERIUM_INDIRECT_SYSCALL)
+add_compile_definitions(IMPERIUM_DIRECT_SYSCALL)
 
 #
 # output directory
@@ -45,17 +46,9 @@ file(GLOB_RECURSE IMPERIUM_INCLUDE
         "include/*.h"
 )
 
-add_executable(${PROJECT_NAME}.x64 ${IMPERIUM_SRC} ${IMPERIUM_INCLUDE})
+add_executable(${PROJECT_NAME} ${IMPERIUM_SRC} ${IMPERIUM_INCLUDE})
 
 #
 # targets
 #
-set_target_properties(${PROJECT_NAME}.x64 PROPERTIES OUTPUT_NAME "${PROJECT_NAME}.x64")
-
-#
-# compile commands
-#
-add_custom_command(TARGET ${PROJECT_NAME}.x64 POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E echo "[+] compile x64 executable"
-        COMMAND ${CMAKE_CXX_COMPILER} $<TARGET_FILE:${PROJECT_NAME}.x64> -o ${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}.x64.exe ${CMAKE_CXX_FLAGS}
-)
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}.x64.bin")

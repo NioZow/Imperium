@@ -40,14 +40,14 @@ GLOBAL StRipEnd
         call  PreMain
         mov   rsp, rsi
         pop   rsi
-        ret
+    ret
 
     ;;
     ;; get rip to the start of the agent
     ;;
     StRipStart:
         call StRipPtrStart
-        ret
+    ret
 
     ;;
     ;; get the return address of StRipStart and put it into the rax register
@@ -55,7 +55,7 @@ GLOBAL StRipEnd
     StRipPtrStart:
         mov	rax, [rsp] ;; get the return address
         sub rax, 0x1b  ;; subtract the instructions size to get the base address
-        ret            ;; return to StRipStart
+    ret                ;; return to StRipStart
 
 ;;
 ;; end of the implant code
@@ -67,7 +67,7 @@ GLOBAL StRipEnd
     ;;
     StRipEnd:
         call StRetPtrEnd
-        ret
+    ret
 
     ;;
     ;; get the return address of StRipEnd and put it into the rax register
@@ -75,7 +75,7 @@ GLOBAL StRipEnd
     StRetPtrEnd:
         mov rax, [rsp] ;; get the return address
         add	rax, 0xb   ;; get implant end address
-        ret            ;; return to StRipEnd
+    ret                ;; return to StRipEnd
 
 [SECTION .text$P]
 

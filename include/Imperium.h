@@ -12,15 +12,25 @@
 //
 // project headers
 //
-#include <common/Stardust.h>
 #include <common/Common.h>
 #include <common/Native.h>
 
 //
-// stardust instances
+// stardust related macros
 //
-EXTERN_C ULONG __Instance_offset;
-EXTERN_C PVOID __Instance;
+#define STARDUST_INSTANCE PINSTANCE __LocalInstance = Imperium::instance::get();
+#define Instance()        ( ( PINSTANCE ) ( __LocalInstance ) )
+#define D_API( x )  __typeof__( x ) * x
+#define D_SEC( x )  __attribute__( ( section( ".text$" #x "" ) ) )
+#define FUNC        D_SEC( B )
+#define ST_GLOBAL   __attribute__( ( section( ".global" ) ) )
+#define ST_READONLY __attribute__( ( section( ".rdata" ) ) )
+
+//
+// stardust related functions
+//
+EXTERN_C PVOID StRipStart();
+EXTERN_C PVOID StRipEnd();
 
 //
 // pseudo handles

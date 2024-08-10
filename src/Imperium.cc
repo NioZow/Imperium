@@ -1,4 +1,4 @@
-#include <common/Imperium.h>
+#include <Imperium.h>
 
 namespace Imperium {
     namespace win32 {
@@ -76,7 +76,8 @@ namespace Imperium {
             //
             // add the syscall to the instance
             //
-            if ( Flags & SymbolSyscall && Flags & SyscallAddInstance ) {
+            if
+            ( Flags & SymbolSyscall && Flags & SyscallAddInstance ) {
                 Instance()->Syscall = &Sym->Syscall;
             }
 

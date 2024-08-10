@@ -3,7 +3,7 @@ MAKEFLAGS += "-s -j 16"
 ##
 ## Project name
 ##
-Project := project-template
+Project := imperium
 
 ##
 ## Compilers
@@ -28,7 +28,7 @@ CFLAGS  += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 ${DEFINES}
 ##
 ## Stardust source and object files
 ##
-STAR-SRC := $(wildcard src/main/*.cc) $(wildcard src/common/*.cc) $(wildcard src/core/*.cc)
+STAR-SRC := $(wildcard src/*.cc)
 STAR-OBJ := $(STAR-SRC:%.cc=%.o)
 
 ##

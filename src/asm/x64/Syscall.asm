@@ -11,11 +11,13 @@ global SyscallDirect
     SyscallIndirect:
         mov r15, 1
         jmp Start
+    ret
 
     ; perform direct syscalls
     SyscallDirect:
         mov r15, 2
         jmp Start
+    ret
 
     ; init some registers
     Start:
