@@ -10,7 +10,7 @@
 FUNC VOID Main(
     IN PVOID Param
 ) {
-    STARDUST_INSTANCE
+    IMPERIUM_INSTANCE
 
     //
     // call LoadLibraryA to have the needed module is our peb

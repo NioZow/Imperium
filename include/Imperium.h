@@ -18,7 +18,7 @@
 //
 // stardust related macros
 //
-#define STARDUST_INSTANCE PINSTANCE __LocalInstance = Imperium::instance::get();
+#define IMPERIUM_INSTANCE PINSTANCE __LocalInstance = Imperium::instance::get();
 #define Instance()        ( ( PINSTANCE ) ( __LocalInstance ) )
 #define D_API( x )  __typeof__( x ) * x
 #define D_SEC( x )  __attribute__( ( section( ".text$" #x "" ) ) )

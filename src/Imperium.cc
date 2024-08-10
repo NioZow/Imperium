@@ -19,7 +19,7 @@ namespace Imperium {
             SYMBOL_HASH SymHash,
             ULONG       Flags
         ) {
-            STARDUST_INSTANCE
+            IMPERIUM_INSTANCE
 
             NTSTATUS NtStatus = { 0 };
             PSYMBOL  Sym      = { 0 };
@@ -121,7 +121,7 @@ namespace Imperium {
             FUNC PSYMBOL get(
                 PSYMBOL_HASH FuncHash
             ) {
-                STARDUST_INSTANCE
+                IMPERIUM_INSTANCE
 
                 PSYMBOL FuncAddr = Instance()->Symbol;
 
@@ -167,7 +167,7 @@ namespace Imperium {
                 PVOID       SymAddr,
                 USHORT      Ssn = 0
             ) {
-                STARDUST_INSTANCE
+                IMPERIUM_INSTANCE
 
                 PSYMBOL *         Sym    = &Instance()->Symbol;
                 PVOID             Module = { 0 };
@@ -501,7 +501,7 @@ namespace Imperium {
             IN PCSTR fmt,
             ...
         ) {
-            STARDUST_INSTANCE
+            IMPERIUM_INSTANCE
 
             INT     OutputSize   = { 0 };
             PCHAR   OutputString = { 0 };
