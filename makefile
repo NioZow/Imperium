@@ -18,12 +18,14 @@ DEFINES := -DIMPERIUM_DEBUG
 ##
 ## Compiler flags
 ##
-CFLAGS  := -Os -fno-asynchronous-unwind-tables -nostdlib
-CFLAGS  += -fno-ident -fpack-struct=8 -falign-functions=1
-CFLAGS  += -s -ffunction-sections -falign-jumps=1 -w
-CFLAGS  += -falign-labels=1 -fPIC -Wl,-Tscripts/Linker.ld
-CFLAGS  += -Wl,-s,--no-seh,--enable-stdcall-fixup
-CFLAGS  += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 ${DEFINES}
+CFLAGS          := -Os -fno-asynchronous-unwind-tables
+CFLAGS          += -fno-ident -fpack-struct=8 -falign-functions=1
+CFLAGS          += -s -ffunction-sections -falign-jumps=1 -w
+CFLAGS          += -falign-labels=1 -fPIC
+CFLAGS          += -Wl,-s,--no-seh,--enable-stdcall-fixup
+CFLAGS          += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 ${DEFINES}
+
+SHELLCODE_FLAGS := -nostdlib -Wl,-Tscripts/Linker.ld -DIMPERIUM_SHELLCODE
 
 ##
 ## Stardust source and object files
@@ -42,13 +44,17 @@ BIN-X64	:= bin/$(Project).x64.bin
 ##
 all: x64
 
+exe: clean asm-x64
+	@ echo "[+] compile x64 exe"
+	@ $(CC_X64) $(STAR-SRC) bin/obj/asm_Syscall.x64.o -o $(EXE-X64) $(CFLAGS)
+
 ##
 ## Build stardust source into an
 ## executable and extract shellcode
 ##
 x64: clean asm-x64 $(STAR-OBJ)
 	@ echo "[+] compile x64 executable"
-	@ $(CC_X64) bin/obj/*.x64.o -o $(EXE-X64) $(CFLAGS)
+	@ $(CC_X64) bin/obj/*.x64.o -o $(EXE-X64) $(CFLAGS) $(SHELLCODE_FLAGS)
 	@ python3 scripts/build.py -f $(EXE-X64) -o $(BIN-X64)
 	@ rm $(EXE-X64)
 
@@ -56,7 +62,7 @@ x64: clean asm-x64 $(STAR-OBJ)
 ## Build source to object files
 ##
 $(STAR-OBJ):
-	@ $(CC_X64) -o bin/obj/$(Project)_$(basename $(notdir $@)).x64.o -c $(basename $@).cc $(CFLAGS)
+	@ $(CC_X64) -o bin/obj/$(Project)_$(basename $(notdir $@)).x64.o -c $(basename $@).cc $(CFLAGS) $(SHELLCODE_FLAGS)
 
 ##
 ## Build assemlby source to object files

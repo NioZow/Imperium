@@ -20,17 +20,25 @@
 //
 #define IMPERIUM_INSTANCE PINSTANCE __LocalInstance = Imperium::instance::get();
 #define Instance()        ( ( PINSTANCE ) ( __LocalInstance ) )
-#define D_API( x )  __typeof__( x ) * x
+VOID Main();
+
+
+#ifdef IMPERIUM_SHELLCODE
+#define IMPERIUM_MAIN EXTERN_C FUNC INT PreMain()
 #define D_SEC( x )  __attribute__( ( section( ".text$" #x "" ) ) )
 #define FUNC        D_SEC( B )
 #define ST_GLOBAL   __attribute__( ( section( ".global" ) ) )
 #define ST_READONLY __attribute__( ( section( ".rdata" ) ) )
-
-//
-// stardust related functions
-//
 EXTERN_C PVOID StRipStart();
 EXTERN_C PVOID StRipEnd();
+#else
+#define IMPERIUM_MAIN INT main()
+#define FUNC
+#define ST_GLOBAL
+#define ST_READONLY
+#define StRipStart() nullptr
+#define StRipEnd()   nullptr
+#endif
 
 //
 // pseudo handles
@@ -109,20 +117,24 @@ EXTERN_C PVOID StRipEnd();
 #define NT_ERROR( NtStatus )       ( ( NTSTATUS ) ( NtStatus ) >> 30 == 3 )
 
 //
+// success
+//
+#define SUCCESS( Status ) ( Status == 0 )
+
+//
 // io macros
 //
 #define PRINTF( text, ... )             Imperium::io::printf( text, ##__VA_ARGS__ )
-
-#ifdef IMPERIUM_DEBUG
-#define PRINTF_INFO( text, ... )        PRINTF( "[INFO::%s::%s::%d] " text "\n", __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ )
-#define PRINTF_ERROR( text, ... )       PRINTF( "[ERROR::%s::%s::%d] " text "\n", __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ )
-#else
 #define PRINTF_INFO( text, ... )        PRINTF( "[*] " text "\n", ##__VA_ARGS__ )
 #define PRINTF_ERROR( text, ... )       PRINTF( "[!] " text "\n", ##__VA_ARGS__ )
-#endif
-
 #define PRINT_NT_ERROR( ntapi, status ) PRINTF_ERROR( "%s failed with error: 0x%08X\n", ntapi, status )
 #define PRINT_WIN32_ERROR( win32api )   PRINTF_ERROR( "%s failed with error: %ld\n", win32api, NtLastError() )
+
+#ifdef IMPERIUM_DEBUG
+#define PRINTF_DEBUG( text, ... )       PRINTF( "[DEBUG::%s::%s::%d] " text "\n", __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ )
+#else
+#define PRINTF_DEBUG( text, ... )
+#endif
 
 //
 // string
@@ -163,7 +175,7 @@ EXTERN_C NTSTATUS SyscallDirect(
 );
 
 //
-// enumm definition
+// enum definition
 //
 typedef enum _WIN32_RESOLVE_FLAGS : ULONG {
     SymbolSyscall      = 0x01,

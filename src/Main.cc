@@ -1,27 +1,8 @@
 #include <Imperium.h>
 
-/*!
- * @brief
- *  main function put your code here
- *
- * @param Param
- *  parameters
+/*
+ * do not insert another function is that file it causes problems
  */
-FUNC VOID Main(
-    IN PVOID Param
-) {
-    IMPERIUM_INSTANCE
-
-    //
-    // call LoadLibraryA to have the needed module is our peb
-    // wont be able to resolve their functions otherwise
-    //
-    if ( ! Imperium::win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), "user32.dll" ) ) {
-        return;
-    }
-
-    Imperium::win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), NULL, "Happy Hacking!", "Imperium", MB_OK );
-}
 
 /*!
  * @brief
@@ -32,9 +13,7 @@ FUNC VOID Main(
  * @param Param
  *  parameters
  */
-EXTERN_C FUNC VOID PreMain(
-    PVOID Param
-) {
+IMPERIUM_MAIN {
     PINSTANCE Instance = { 0 };
     PPVOID    MmAddr   = { 0 };
     PPEB      Peb      = NtCurrentPeb();
@@ -43,7 +22,7 @@ EXTERN_C FUNC VOID PreMain(
     // check if there are enough heaps to hold our instance
     //
     if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
-        return;
+        return EXIT_FAILURE;
     }
 
     //
@@ -55,7 +34,7 @@ EXTERN_C FUNC VOID PreMain(
     // allocate memory for the instance
     //
     if ( ! ( *MmAddr = Instance = Imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
-        return;
+        return EXIT_FAILURE;
     }
 
     //
@@ -80,5 +59,5 @@ EXTERN_C FUNC VOID PreMain(
     //
     // now execute the implant entrypoint
     //
-    Main( Param );
+    Main();
 }

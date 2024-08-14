@@ -23,8 +23,7 @@ include_directories(include)
 #
 # compile defintions
 #
-add_compile_definitions(IMPERIUM_INDIRECT_SYSCALL)
-add_compile_definitions(IMPERIUM_DIRECT_SYSCALL)
+add_compile_definitions(IMPERIUM_DEBUG)
 
 #
 # output directory
@@ -43,9 +42,11 @@ file(GLOB_RECURSE IMPERIUM_INCLUDE
         "include/*.h"
 )
 
-add_executable(${PROJECT_NAME} ${IMPERIUM_SRC} ${IMPERIUM_INCLUDE})
+add_executable(${PROJECT_NAME} ${IMPERIUM_SRC} ${IMPERIUM_INCLUDE}
+        src/Program.cc)
 
 #
 # targets
 #
+set_target_properties(${PROJECT_NAME} PROPERTIES LINKER_LANGUAGE CXX)
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "${PROJECT_NAME}.x64.bin")
