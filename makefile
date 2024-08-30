@@ -41,6 +41,7 @@ STAR-OBJ := $(STAR-SRC:%.cc=%.o)
 BIN_FOLDER := ~/SharedFolder
 EXE-X64	   := $(BIN_FOLDER)/$(Project).x64.exe
 BIN-X64	   := $(BIN_FOLDER)/$(Project).x64.bin
+BOF-X64	   := $(BIN_FOLDER)/$(Project).x64.o
 
 ##
 ## main target
@@ -50,6 +51,10 @@ all: shellcode exe
 exe: clean asm-x64
 	@ echo "[+] compile x64 exe"
 	@ $(CC_X64) $(STAR-SRC) bin/obj/asm_Syscall.x64.o -o $(EXE-X64) $(CFLAGS) $(EXE_FLAGS)
+
+bof: clean asm-x64
+	@ echo "[+] compile x64 bof"
+	@ $(CC_X64) $(STAR-SRC) bin/obj/asm_Syscall.x64.o -o $(BOF-X64) $(CFLAGS) $(BOF_FLAGS) -c
 
 ##
 ## Build stardust source into an
