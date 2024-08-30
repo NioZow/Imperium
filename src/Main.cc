@@ -1,4 +1,5 @@
-#include <Imperium.h>
+#define IMPERIUM
+#include <Imperium.hpp>
 
 /*
  * do not insert another function is that file it causes problems

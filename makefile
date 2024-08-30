@@ -26,6 +26,8 @@ CFLAGS          += -Wl,-s,--no-seh,--enable-stdcall-fixup
 CFLAGS          += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 ${DEFINES}
 
 SHELLCODE_FLAGS := -nostdlib -Wl,-Tscripts/Linker.ld -DIMPERIUM_SHELLCODE
+EXE_FLAGS       := -DIMPERIUM_EXE
+BOF_FLAGS       := -DIMPERIUM_BOF
 
 ##
 ## Stardust source and object files
@@ -36,23 +38,24 @@ STAR-OBJ := $(STAR-SRC:%.cc=%.o)
 ##
 ## x64 binaries
 ##
-EXE-X64	:= bin/$(Project).x64.exe
-BIN-X64	:= bin/$(Project).x64.bin
+BIN_FOLDER := ~/SharedFolder
+EXE-X64	   := $(BIN_FOLDER)/$(Project).x64.exe
+BIN-X64	   := $(BIN_FOLDER)/$(Project).x64.bin
 
 ##
 ## main target
 ##
-all: x64
+all: shellcode exe
 
 exe: clean asm-x64
 	@ echo "[+] compile x64 exe"
-	@ $(CC_X64) $(STAR-SRC) bin/obj/asm_Syscall.x64.o -o $(EXE-X64) $(CFLAGS)
+	@ $(CC_X64) $(STAR-SRC) bin/obj/asm_Syscall.x64.o -o $(EXE-X64) $(CFLAGS) $(EXE_FLAGS)
 
 ##
 ## Build stardust source into an
 ## executable and extract shellcode
 ##
-x64: clean asm-x64 $(STAR-OBJ)
+shellcode: clean asm-x64 $(STAR-OBJ)
 	@ echo "[+] compile x64 executable"
 	@ $(CC_X64) bin/obj/*.x64.o -o $(EXE-X64) $(CFLAGS) $(SHELLCODE_FLAGS)
 	@ python3 scripts/build.py -f $(EXE-X64) -o $(BIN-X64)

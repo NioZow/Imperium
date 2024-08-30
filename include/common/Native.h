@@ -392,8 +392,15 @@ typedef PSTRING PCANSI_STRING;
 
 typedef struct _UNICODE_STRING
 {
-	USHORT Length;
-	USHORT MaximumLength;
+    union {
+        struct {
+            USHORT Length;
+            USHORT MaximumLength;
+        };
+
+        ULONG Size;
+    };
+
 	PWSTR Buffer;
 } UNICODE_STRING, *PUNICODE_STRING, **PPUNICODE_STRING;
 typedef const UNICODE_STRING *PCUNICODE_STRING;

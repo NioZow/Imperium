@@ -23,7 +23,9 @@ include_directories(include)
 #
 # compile defintions
 #
+add_compile_definitions(IMPERIUM)
 add_compile_definitions(IMPERIUM_DEBUG)
+add_compile_definitions(IMPERIUM_SHELLCODE)
 
 #
 # output directory
@@ -42,8 +44,7 @@ file(GLOB_RECURSE IMPERIUM_INCLUDE
         "include/*.h"
 )
 
-add_executable(${PROJECT_NAME} ${IMPERIUM_SRC} ${IMPERIUM_INCLUDE}
-        src/Program.cc)
+add_executable(${PROJECT_NAME} ${IMPERIUM_SRC} ${IMPERIUM_INCLUDE})
 
 #
 # targets
