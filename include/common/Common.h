@@ -57,4 +57,31 @@ typedef INT ( WINAPI*fnMessageBoxA )(
     IN UINT            uType
 );
 
+typedef NTSTATUS ( NTAPI*fnNtOpenSection )(
+    OUT PHANDLE           SectionHandle,
+    IN ACCESS_MASK        DesiredAccess,
+    IN POBJECT_ATTRIBUTES ObjectAttributes
+);
+
+typedef NTSTATUS ( NTAPI*fnNtMapViewOfSection )(
+    IN HANDLE                      SectionHandle,
+    IN HANDLE                      ProcessHandle,
+    IN OUT PVOID *                 BaseAddress,
+    IN ULONG_PTR                   ZeroBits,
+    IN SIZE_T                      CommitSize,
+    IN OUT OPTIONAL PLARGE_INTEGER SectionOffset,
+    IN OUT PSIZE_T                 ViewSize,
+    IN SECTION_INHERIT             InheritDisposition,
+    IN ULONG                       AllocationType,
+    IN ULONG                       Win32Protect
+);
+
+typedef NTSTATUS ( NTAPI*fnNtProtectVirtualMemory )(
+    IN HANDLE      ProcessHandle,
+    IN OUT PVOID * BaseAddress,
+    IN OUT PSIZE_T RegionSize,
+    IN ULONG       NewProtect,
+    OUT PULONG     OldProtect
+);
+
 #endif //COMMON_COMMON_H

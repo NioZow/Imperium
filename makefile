@@ -38,7 +38,7 @@ STAR-OBJ := $(STAR-SRC:%.cc=%.o)
 ##
 ## x64 binaries
 ##
-BIN_FOLDER := ~/SharedFolder
+BIN_FOLDER := bin
 EXE-X64	   := $(BIN_FOLDER)/$(Project).x64.exe
 BIN-X64	   := $(BIN_FOLDER)/$(Project).x64.bin
 BOF-X64	   := $(BIN_FOLDER)/$(Project).x64.o
