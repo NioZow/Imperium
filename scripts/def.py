@@ -1,9 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#     "requests",
+# ]
+# ///
 from sys import argv
+
 import requests
 
-def parse_msdoc(url: str) -> None:
 
+def parse_msdoc(url: str) -> None:
     # download the doc
     res = requests.get(url)
     if res.status_code != 200:
@@ -11,20 +18,19 @@ def parse_msdoc(url: str) -> None:
 
     content = res.text.split("\n")
     grep_start_string = '<pre><code class="lang-cpp">'
-    grep_end_string = '</code></pre>'
+    grep_end_string = "</code></pre>"
     found_code_block = False
     function = []
 
     # look for the function (the first code block)
     for line in content:
-
         if line.startswith(grep_end_string):
             break
         elif found_code_block:
             function.append(line)
         elif line.startswith(grep_start_string):
             # found the code block
-            function.append(line[len(grep_start_string):])
+            function.append(line[len(grep_start_string) :])
             found_code_block = True
 
     if len(function) == 0:
@@ -48,16 +54,16 @@ def parse_msdoc(url: str) -> None:
     print(f"DLL: {get_dll_msdoc(content)}")
     print("\n".join(function))
 
-def get_dll_msdoc(content) -> str:
 
+def get_dll_msdoc(content) -> str:
     grep_string = "<td><strong>DLL</strong></td>"
     grep_string_2 = '<td style="text-align: left;">'
-    grep_string_3 = '</td>'
+    grep_string_3 = "</td>"
     found = False
 
     for line in content:
         if found:
-            return line[len(grep_string_2):-len(grep_string_3)]
+            return line[len(grep_string_2) : -len(grep_string_3)]
 
         if line.startswith(grep_string):
             found = True
@@ -78,3 +84,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

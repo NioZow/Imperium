@@ -3,10 +3,11 @@
 ![Demo](assets/demo.png)
 
 # Features
-* Global instance stored in the PEB
-* Native support for (in)direct syscall
-* No IAT, can call any win32/nt API without worrying about resolving it
-* Compile time hashing using consteval
+
+* Global instance stored in the `PEB`
+* Native support for `(in)direct syscall`
+* No `IAT`, can call any `win32` or `nt` API without having to worry about resolving it
+* Compile time hashing using `consteval`
 
 # Template
 
@@ -33,6 +34,20 @@ FUNC VOID Main(
 
     Imperium::win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), NULL, "Happy Hacking!", "Imperium", MB_OK );
 }
+```
+
+## Scripts
+
+### Def
+
+Takes an `url` as argument and returns the definition for the function ready to be copy and paste as a type :
+
+```sh
+
+./scripts/def.py
+usage: ./scripts/def.py <url>
+```
+```
 ```
 
 # Credits
