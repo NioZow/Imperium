@@ -1,7 +1,9 @@
 #include <imperium/crypto.hpp>
 #include <imperium/defs.h>
+#include <imperium/instance.h>
 #include <imperium/ldr.h>
 #include <imperium/macros.h>
+#include <imperium/mem.h>
 
 namespace imperium::instance {
   /*!
@@ -25,6 +27,55 @@ namespace imperium::instance {
       }
     }
 
+    return Instance;
+  }
+
+  /*!
+   * @brief
+   *  function to start the program from assembly
+   *  the entry for your payload should rather be the Main functin
+   *  as this one is called by that func
+   *
+   * @param Param
+   *  parameters
+   */
+  FUNC PINSTANCE init() {
+    PINSTANCE Instance = { 0 };
+    PPVOID    MmAddr   = { 0 };
+    PPEB      Peb      = NtCurrentPeb();
+
+    //
+    // check if there are enough heaps to hold our instance
+    //
+    if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
+      return nullptr;
+    }
+
+    //
+    // get the address of last heap to use to store a pointer to our instance
+    //
+    MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
+
+    //
+    // allocate memory for the instance
+    //
+    if ( ! ( *MmAddr = mem::alloc( sizeof( INSTANCE ) ) ) ) {
+      return nullptr;
+    }
+
+    //
+    // set a context to find the instance struct in memory
+    //
+    Instance          = static_cast< PINSTANCE >( *MmAddr );
+    Instance->Context = 0xc0debabe;
+
+    //
+    // get the base address of the current implant in memory and the end.
+    // subtract the implant end address with the start address you will
+    // get the size of the implant in memory
+    //
+    Instance->Base.Buffer = StRipStart();
+    Instance->Base.Length = U_PTR( StRipEnd() ) - U_PTR( Instance->Base.Buffer );
     return Instance;
   }
 
@@ -79,7 +130,7 @@ namespace imperium::instance {
     FUNC PSYMBOL add( SYMBOL_HASH SymHash, PVOID SymAddr, USHORT Ssn = 0 ) {
       IMPERIUM_INSTANCE
 
-      PSYMBOL          *Sym    = &Instance()->Symbol;
+      PSYMBOL*          Sym    = &Instance()->Symbol;
       PVOID             Module = { 0 };
       fnRtlAllocateHeap Func   = { 0 };
 
@@ -115,5 +166,5 @@ namespace imperium::instance {
 
       return *Sym;
     }
-  } // namespace symbol
-} // namespace imperium::instance
+  }  // namespace symbol
+}  // namespace imperium::instance

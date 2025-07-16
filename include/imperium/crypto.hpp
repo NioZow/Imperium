@@ -1,6 +1,6 @@
 #include <imperium/defs.h>
 
-#define SEED 5
+#define SEED       5
 #define RANDOM_KEY 5381
 
 /*!
@@ -16,33 +16,31 @@
  * @return
  *  hash of the string
  */
-template<typename T>
-consteval ULONG H_STR(
-    IN T str
-) {
-    ULONG  Hash = { 0 };
-    USHORT Char = { 0 };
+template< typename T >
+consteval ULONG H_STR( IN T str ) {
+  ULONG  Hash = { 0 };
+  USHORT Char = { 0 };
 
-    Hash = RANDOM_KEY;
+  Hash = RANDOM_KEY;
 
-    if ( ! str ) {
-        return 0;
+  if ( ! str ) {
+    return 0;
+  }
+
+  do {
+    Char = *str;
+
+    //
+    // turn the character to uppercase
+    //
+    if ( Char >= 'a' && Char <= 'z' ) {
+      Char -= 0x20;
     }
 
-    do {
-        Char = *str;
+    Hash = ( ( Hash << SEED ) + Hash ) + Char;
+  } while ( *( ++str ) );
 
-        //
-        // turn the character to uppercase
-        //
-        if ( Char >= 'a' && Char <= 'z' ) {
-            Char -= 0x20;
-        }
-
-        Hash = ( ( Hash << SEED ) + Hash ) + Char;
-    } while ( *( ++str ) );
-
-    return Hash;
+  return Hash;
 }
 
 /*!
@@ -57,87 +55,79 @@ consteval ULONG H_STR(
  * @return
  *  hash of the function & module
  */
-consteval SYMBOL_HASH H_FUNC(
-    PCSTR Symbol
-) {
-    PCSTR       Func       = Symbol;
-    CHAR        Mod[ 100 ] = { 0 };
-    SYMBOL_HASH FuncHash   = { 0 };
-    ULONG       Size       = { 0 };
-    INT         i          = { 0 };
+consteval SYMBOL_HASH H_FUNC( PCSTR Symbol ) {
+  PCSTR       Func       = Symbol;
+  CHAR        Mod[ 100 ] = { 0 };
+  SYMBOL_HASH FuncHash   = { 0 };
+  ULONG       Size       = { 0 };
+  INT         i          = { 0 };
 
-    //
-    // find the offset of the '!'
-    //
-    do {
-        if ( *Func == '!' ) {
-            //
-            // copy the module in another variable
-            // can't change just turn Function + 1 into a null byte because symbol is const
-            // custom memcopy because compile time is more restrictive and does not like my casting
-            // imperium::mem::copy( Mod, Symbol, Func++ - Symbol );
-            //
-            Size = Func++ - Symbol;
+  //
+  // find the offset of the '!'
+  //
+  do {
+    if ( *Func == '!' ) {
+      //
+      // copy the module in another variable
+      // can't change just turn Function + 1 into a null byte because symbol is const
+      // custom memcopy because compile time is more restrictive and does not like my casting
+      // imperium::mem::copy( Mod, Symbol, Func++ - Symbol );
+      //
+      Size = Func++ - Symbol;
 
-            for ( ; i < Size ; i++ ) {
-                Mod[ i ] = Symbol[ i ];
-            }
+      for ( ; i < Size; i++ ) {
+        Mod[ i ] = Symbol[ i ];
+      }
 
-            //
-            // append .dll to the module
-            //
-            Mod[ i ]     = '.';
-            Mod[ i + 1 ] = 'd';
-            Mod[ i + 2 ] = 'l';
-            Mod[ i + 3 ] = 'l';
+      //
+      // append .dll to the module
+      //
+      Mod[ i ]     = '.';
+      Mod[ i + 1 ] = 'd';
+      Mod[ i + 2 ] = 'l';
+      Mod[ i + 3 ] = 'l';
 
-            //
-            // calculate the hashes
-            //
-            FuncHash.Function = H_STR( Func );
-            FuncHash.Module   = H_STR( Mod );
+      //
+      // calculate the hashes
+      //
+      FuncHash.Function = H_STR( Func );
+      FuncHash.Module   = H_STR( Mod );
 
-            break;
-        }
-    } while ( *( ++Func ) );
+      break;
+    }
+  } while ( *( ++Func ) );
 
-    return FuncHash;
+  return FuncHash;
 }
 
 namespace imperium::crypto {
-    /*!
-        * @brief
-        *  hash a string
-        *
-        * @param String
-        *  string to hash
-        *
-        * @param Length
-        *  length of the string
-        *
-        * @return
-        *  hash
-        */
-    ULONG hash_string(
-        IN PCWSTR String,
-        IN ULONG  Length
-    );
+  /*!
+   * @brief
+   *  hash a string
+   *
+   * @param String
+   *  string to hash
+   *
+   * @param Length
+   *  length of the string
+   *
+   * @return
+   *  hash
+   */
+  ULONG hash_string( IN PCWSTR String, IN ULONG Length );
 
-    /*!
-        * @brief
-        *  hash a string
-        *
-        * @param String
-        *  string to hash
-        *
-        * @param Length
-        *  length of the string
-        *
-        * @return
-        *  hash
-        */
-    ULONG hash_string(
-        IN PCSTR String,
-        IN ULONG Length
-    );
-}
+  /*!
+   * @brief
+   *  hash a string
+   *
+   * @param String
+   *  string to hash
+   *
+   * @param Length
+   *  length of the string
+   *
+   * @return
+   *  hash
+   */
+  ULONG hash_string( IN PCSTR String, IN ULONG Length );
+}  // namespace imperium::crypto

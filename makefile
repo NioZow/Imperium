@@ -8,9 +8,7 @@ Project := imperium
 ##
 ## Compilers
 ##
-CC_X64 := x86_64-w64-mingw32-g++
-CC_X86 := clang++ -target i686-w64-mingw32
-CC_ASM := nasm
+CXX := x86_64-w64-mingw32-g++
 
 ##
 ## Compiler flags
@@ -19,75 +17,85 @@ CFLAGS := -Os -fno-asynchronous-unwind-tables
 CFLAGS += -fno-ident -fpack-struct=8 -falign-functions=1
 CFLAGS += -s -ffunction-sections -falign-jumps=1 -w
 CFLAGS += -falign-labels=1 -fPIC
-CFLAGS += -Wl,-s,--no-seh,--enable-stdcall-fixup -fno-builtin-memset
-CFLAGS += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 ${DEFINES}
-CFLAGS += -fno-stack-protector -fno-exceptions -fno-rtti -nostdlib -nodefaultlibs
-
-LDFLAGS := -Wl,-Tscripts/Linker.ld
-
-SHE_FLAGS := -DIMPERIUM_SHELLCODE
-EXE_FLAGS := -DIMPERIUM_EXE
-DLL_FLAGS := -DIMPERIUM_DLL
+CFLAGS += -Wl,-s,--no-seh,--enable-stdcall-fixup -fno-builtin
+CFLAGS += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20
+CFLAGS += -fno-stack-protector -fno-exceptions -fno-rtti
 
 ##
-## Stardust source and object files
+## Source files
 ##
-SRC_CC := $(wildcard src/*.cc src/imperium/*.cc src/imperium/entry/shellcode.cc)
-SRC_ASM := $(wildcard src/asm/*.x64.asm)
-
-# Use vpath to tell make where to find source files
 vpath %.cc src src/imperium src/imperium/entry
-vpath %.x64.asm src/asm
+vpath %.x64.asm src/imperium src/imperium/entry
 
-OBJ_CC := $(addprefix bin/obj/,$(notdir $(SRC_CC:.cc=.x64.o)))
-OBJ_ASM := $(addprefix bin/obj/,$(notdir $(SRC_ASM:.x64.asm=.x64.o)))
-OBJ_X64 := $(OBJ_CC) $(OBJ_ASM)
-OBJ_X64_EXE := $(filter-out bin/obj/entry.x64.o,$(OBJ_ASM))
+SRC := $(wildcard src/*.cc src/imperium/*.cc)
+ASM := $(wildcard src/*.x64.asm src/imperium/*.x64.asm)
 
 ##
-## x64 binaries
+## PIC
 ##
-exe-x64 := bin/$(Project).x64.exe
-sh-x64 := bin/$(Project).x64.bin
-dll-x64 := bin/$(Project).x64.dll
+SRC_PIC   := $(SRC) src/imperium/entry/pic.cc
+ASM_PIC   := $(ASM) src/imperium/entry/entry.x64.asm
+OBJ_PIC   := $(addprefix bin/obj/,$(notdir $(SRC_PIC:.cc=.o))) $(addprefix bin/obj/,$(notdir $(ASM_PIC:.asm=.o))) 
+OUT_PIC   := bin/$(Project).x64.bin
+FLAGS_PIC := -DIMPERIUM_SHELLCODE -Wl,-Tscripts/Linker.ld -nostdlib -nodefaultlibs
+
+##
+## EXE
+##
+SRC_EXE   := $(SRC) src/imperium/entry/exe.cc
+ASM_EXE   := $(ASM)
+OBJ_EXE   := $(addprefix bin/obj/,$(notdir $(SRC_EXE:.cc=.o))) $(addprefix bin/obj/,$(notdir $(ASM_EXE:.asm=.o))) 
+OUT_EXE   := bin/$(Project).x64.exe
+FLAGS_EXE := -DIMPERIUM_EXE
+
+##
+## DLL
+##
+SRC_DLL   := $(SRC) src/imperium/entry/dll.cc
+ASM_DLL   := $(ASM)
+OBJ_DLL   := $(addprefix bin/obj/,$(notdir $(SRC_DLL:.cc=.o))) $(addprefix bin/obj/,$(notdir $(ASM_DLL:.asm=.o))) 
+OUT_DLL   := bin/$(Project).x64.dll
+FLAGS_DLL := -DIMPERIUM_DLL -shared
 
 ##
 ## main target
 ##
-all: shellcode exe
+all: pic exe dll
 
 ##
 ## Build stardust source into an
 ## executable and extract shellcode
 ##
-shellcode: $(OBJ_X64)
+pic: $(OBJ_PIC)
 	@ echo "-> linking x64 shellcode"
-	@ $(CC_X64) bin/obj/*.x64.o -o $(exe-x64) $(CFLAGS) $(LDFLAGS) $(SHE_FLAGS)
-	@ scripts/build.py -f $(exe-x64) -o $(sh-x64)
-	@ rm $(exe-x64)
+	@ $(CXX) $(OBJ_PIC) -o $(OUT_EXE) $(CFLAGS) $(FLAGS_PIC)
+	@ scripts/build.py -f $(OUT_EXE) -o $(OUT_PIC)
+
+exe: $(OBJ_EXE)
+	@ echo "-> linking x64 exe"
+	@ $(CXX) $(OBJ_EXE) -o $(OUT_EXE) $(CFLAGS) $(FLAGS_EXE)
+
+dll: $(OBJ_DLL)
+	@ echo "-> linking x64 dll"
+	@ $(CXX) $(OBJ_DLL) -o $(OUT_DLL) $(CFLAGS) $(FLAGS_DLL)
 
 ##
-## Build source to object files
-## For shellcode
+## build source to object files
 ##
-bin/obj/%.x64.o: %.cc
+bin/obj/%.o: %.cc
 	@ echo "-> compiling $< to $(notdir $@)"
-	@ $(CC_X64) -o $@ -c $< $(CFLAGS) $(SHE_FLAGS)
+	@ $(CXX) -o $@ -c $< $(CFLAGS) $(SHE_FLAGS)
 
-bin/obj/%.x64.o: %.x64.asm
+bin/obj/%.o: %.asm
 	@ echo "-> compiling $< to $(notdir $@)"
 	@ nasm -f win64 -o $@ $<
-
-exe: $(OBJ_X64_EXE)
-	@ echo "-> compiling x64 exe"
-	@ $(CC_X64) $(SRC_CC) bin/obj/syscall.x64.o -o $(exe-x64) $(CFLAGS) $(EXE_FLAGS)
 
 ##
 ## build the loader
 ##
 loader:
-	@ echo "[*] compiling loader"
-	@ x86_64-w64-mingw32-gcc scripts/loader.c -o bin/loader.x64.exe
+	@ echo "-> compiling loader"
+	@ $(CC_X64) scripts/loader.c -o bin/loader.x64.exe
 
 ##
 ## Clean object files and other binaries

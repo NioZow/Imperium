@@ -13,7 +13,7 @@ DEFAULT REL
 ;;
 ;; Import
 ;;
-EXTERN PreMain
+EXTERN entry
 
 ;;
 ;; Export
@@ -28,7 +28,7 @@ GLOBAL StRipEnd
 [SECTION .text$A]
     ;;
     ;; shellcode entrypoint
-    ;; aligns the stack by 16-bytes to avoid any unwanted
+    ;; aligns the stack by -bytes to avoid any unwanted
     ;; crashes while calling win32 functions and execute
     ;; the true C code entrypoint
     ;;
@@ -37,7 +37,7 @@ GLOBAL StRipEnd
         mov   rsi, rsp
         and   rsp, 0FFFFFFFFFFFFFFF0h
         sub   rsp, 020h
-        call  PreMain
+        call  entry
         mov   rsp, rsi
         pop   rsi
     ret
@@ -53,7 +53,7 @@ GLOBAL StRipEnd
     ;; get the return address of StRipStart and put it into the rax register
     ;;
     StRipPtrStart:
-        mov	rax, [rsp] ;; get the return address
+        mov rax, [rsp] ;; get the return address
         sub rax, 0x1b  ;; subtract the instructions size to get the base address
     ret                ;; return to StRipStart
 
@@ -74,7 +74,7 @@ GLOBAL StRipEnd
     ;;
     StRetPtrEnd:
         mov rax, [rsp] ;; get the return address
-        add	rax, 0xb   ;; get implant end address
+        add rax, 0xb   ;; get implant end address
     ret                ;; return to StRipEnd
 
 [SECTION .text$P]

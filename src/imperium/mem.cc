@@ -13,8 +13,10 @@ namespace imperium::mem {
    *  number of bytes to allocate
    */
   FUNC PVOID alloc( ULONG size ) {
-    return win32::call< fnRtlAllocateHeap >(
-        H_FUNC( "ntdll!RtlAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY, size );
+    return win32::call< fnRtlAllocateHeap >( H_FUNC( "ntdll!RtlAllocateHeap" ),
+        NtProcessHeap(),
+        HEAP_ZERO_MEMORY,
+        size );
   }
 
   /*!
@@ -44,7 +46,10 @@ namespace imperium::mem {
    *  pointer to the reallocated memory
    */
   FUNC PVOID realloc( PVOID ptr, ULONG size ) {
-    win32::call< fnRtlReAllocateHeap >(
-        H_FUNC( "ntdll!RtlReAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY, ptr, size );
+    win32::call< fnRtlReAllocateHeap >( H_FUNC( "ntdll!RtlReAllocateHeap" ),
+        NtProcessHeap(),
+        HEAP_ZERO_MEMORY,
+        ptr,
+        size );
   }
-} // namespace imperium::mem
+}  // namespace imperium::mem

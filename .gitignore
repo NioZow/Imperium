@@ -1,5 +1,6 @@
 scripts/*.exe
 bin/*.exe
+bin/*.dll
 bin/obj/*.o
 .idea
 bin/*.bin

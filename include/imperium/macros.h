@@ -8,26 +8,17 @@
 
 #ifdef IMPERIUM_SHELLCODE
   #define D_SEC( x )  __attribute__( ( section( ".text$" #x "" ) ) )
-  #define FUNC        D_SEC( B )
   #define ST_GLOBAL   __attribute__( ( section( ".global" ) ) )
   #define ST_READONLY __attribute__( ( section( ".rdata" ) ) )
+  #define FUNC        D_SEC( B )
 EXTERN_C PVOID StRipStart();
 EXTERN_C PVOID StRipEnd();
-#elif defined( IMPERIUM_EXE )
+#else
   #define FUNC
   #define ST_GLOBAL
   #define ST_READONLY
   #define StRipStart() nullptr
   #define StRipEnd()   nullptr
-#elif defined( IMPERIUM_BOF )
-  #define IMPERIUM_MAIN INT main()
-  #define FUNC          EXTERN_C
-  #define ST_GLOBAL
-  #define ST_READONLY
-  #define StRipStart() nullptr
-  #define StRipEnd()   nullptr
-#else
-  #error Please define either IMPERIUM_SHELLCODE, IMPERIUM_EXE or IMPERIUM_BOF
 #endif
 
 //
