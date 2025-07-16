@@ -1,8 +1,5 @@
 MAKEFLAGS += "-s -j 16"
 
-MINGW_PREFIX ?= /usr/x86_64-w64-mingw32
-CLANG_RESOURCE_DIR ?= /usr/lib/clang/17
-
 ##
 ## Project name
 ##
@@ -11,19 +8,9 @@ Project := imperium
 ##
 ## Compilers
 ##
-CC_X64 := clang++ -target x86_64-w64-mingw32
+CC_X64 := x86_64-w64-mingw32-g++
 CC_X86 := clang++ -target i686-w64-mingw32
-ASMCC  := nasm
-
-##
-## defines
-##
-DEFINES := -DIMPERIUM_DEBUG
-
-MINGW_INCLUDES := -I$(CLANG_RESOURCE_DIR)/include 
-MINGW_INCLUDES += -I$(MINGW_PREFIX)/include/c++/15.1.0
-MINGW_INCLUDES += -I$(MINGW_PREFIX)/include/c++/15.1.0/x86_64-w64-mingw32
-MINGW_INCLUDES += -I/opt/homebrew/Cellar/mingw-w64/13.0.0/toolchain-x86_64/x86_64-w64-mingw32/include
+CC_ASM := nasm
 
 ##
 ## Compiler flags
@@ -34,12 +21,13 @@ CFLAGS += -s -ffunction-sections -falign-jumps=1 -w
 CFLAGS += -falign-labels=1 -fPIC
 CFLAGS += -Wl,-s,--no-seh,--enable-stdcall-fixup -fno-builtin-memset
 CFLAGS += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20 ${DEFINES}
-CFLAGS += --sysroot=$(MINGW_PREFIX) $(MINGW_INCLUDES) $(MINGW_LIBS)
 CFLAGS += -fno-stack-protector -fno-exceptions -fno-rtti -nostdlib -nodefaultlibs
 
-SHELLCODE_FLAGS := -nostdlib -Wl,-Tscripts/Linker.ld -DIMPERIUM_SHELLCODE
-EXE_FLAGS       := -DIMPERIUM_EXE
-BOF_FLAGS       := -DIMPERIUM_BOF
+LDFLAGS := -Wl,-Tscripts/Linker.ld
+
+SHE_FLAGS := -DIMPERIUM_SHELLCODE
+EXE_FLAGS := -DIMPERIUM_EXE
+DLL_FLAGS := -DIMPERIUM_DLL
 
 ##
 ## Stardust source and object files
@@ -74,27 +62,17 @@ all: shellcode exe
 ##
 shellcode: $(OBJ_X64)
 	@ echo "-> linking x64 shellcode"
-	@ $(CC_X64) bin/obj/*.x64.o -o $(exe-x64) $(CFLAGS) $(SHELLCODE_FLAGS)
+	@ $(CC_X64) bin/obj/*.x64.o -o $(exe-x64) $(CFLAGS) $(LDFLAGS) $(SHE_FLAGS)
 	@ scripts/build.py -f $(exe-x64) -o $(sh-x64)
 	@ rm $(exe-x64)
 
 ##
 ## Build source to object files
-##
-# bin/obj/%.x64.o: src/%.cc
-# 	@ echo "-> compiling $< to $(notdir $@)"
-# 	@ $(CC_X64) -o $@ -c $< $(CFLAGS) $(SHELLCODE_FLAGS)
-#
-# bin/obj/%.x64.o: src/asm/%.x64.asm
-# 	@ echo "-> compiling $< to $(notdir $@)"
-# 	@ nasm -f win64 -o $@ $<
-
-##
-## Build source to object files
+## For shellcode
 ##
 bin/obj/%.x64.o: %.cc
 	@ echo "-> compiling $< to $(notdir $@)"
-	@ $(CC_X64) -o $@ -c $< $(CFLAGS) $(SHELLCODE_FLAGS)
+	@ $(CC_X64) -o $@ -c $< $(CFLAGS) $(SHE_FLAGS)
 
 bin/obj/%.x64.o: %.x64.asm
 	@ echo "-> compiling $< to $(notdir $@)"
@@ -102,7 +80,6 @@ bin/obj/%.x64.o: %.x64.asm
 
 exe: $(OBJ_X64_EXE)
 	@ echo "-> compiling x64 exe"
-	# @ $(CC_X64) $(SRC_CC) $(OBJ_X64_EXE) -o $(exe-x64) $(CFLAGS) $(EXE_FLAGS)
 	@ $(CC_X64) $(SRC_CC) bin/obj/syscall.x64.o -o $(exe-x64) $(CFLAGS) $(EXE_FLAGS)
 
 ##
