@@ -2,90 +2,83 @@
 #include <imperium/macros.h>
 
 namespace imperium::crypto {
-    /*!
-     * @brief
-     *  hash a string
-     *
-     * @param String
-     *  string to hash
-     *
-     * @param Length
-     *  length of the string
-     *
-     * @return
-     *  hash
-     */
-    FUNC ULONG hash_string(
-        IN PCWSTR String,
-        IN ULONG  Length
-    ) {
-        ULONG  Hash = { 0 };
-        USHORT Char = { 0 };
-        ULONG  Cnt  = { 0 };
+  /*!
+   * @brief
+   *  hash a string
+   *
+   * @param String
+   *  string to hash
+   *
+   * @param Length
+   *  length of the string
+   *
+   * @return
+   *  hash
+   */
+  FUNC ULONG hash_string( IN PCWSTR String, IN ULONG Length ) {
+    ULONG  Hash = { 0 };
+    USHORT Char = { 0 };
+    ULONG  Cnt  = { 0 };
 
-        Hash = RANDOM_KEY;
+    Hash = RANDOM_KEY;
 
-        if ( ! String ) {
-            return 0;
-        }
-
-        do {
-            Char = *String;
-
-            //
-            // turn the character to uppercase
-            //
-            if ( Char >= 'a' && Char <= 'z' ) {
-                Char -= 0x20;
-            }
-
-            Hash = ( ( Hash << SEED ) + Hash ) + Char;
-        } while ( ++Cnt < Length && *( ++String ) );
-
-        return Hash;
+    if ( ! String ) {
+      return 0;
     }
 
-    /*!
-     * @brief
-     *  hash a string
-     *
-     * @param String
-     *  string to hash
-     *
-     * @param Length
-     *  length of the string
-     *
-     * @return
-     *  hash
-     */
-    FUNC ULONG hash_string(
-        IN PCSTR String,
-        IN ULONG Length
-    ) {
-        ULONG  Hash = { 0 };
-        USHORT Char = { 0 };
-        ULONG  Cnt  = { 0 };
+    do {
+      Char = *String;
 
-        Hash = RANDOM_KEY;
+      //
+      // turn the character to uppercase
+      //
+      if ( Char >= 'a' && Char <= 'z' ) {
+        Char -= 0x20;
+      }
 
-        if ( ! String ) {
-            return 0;
-        }
+      Hash = ( ( Hash << SEED ) + Hash ) + Char;
+    } while ( ++Cnt < Length && *( ++String ) );
 
-        do {
-            Char = *String;
+    return Hash;
+  }
 
-            //
-            // turn the character to uppercase
-            //
-            if ( Char >= 'a' && Char <= 'z' ) {
-                Char -= 0x20;
-            }
+  /*!
+   * @brief
+   *  hash a string
+   *
+   * @param String
+   *  string to hash
+   *
+   * @param Length
+   *  length of the string
+   *
+   * @return
+   *  hash
+   */
+  FUNC ULONG hash_string( IN PCSTR String, IN ULONG Length ) {
+    ULONG  Hash = { 0 };
+    USHORT Char = { 0 };
+    ULONG  Cnt  = { 0 };
 
-            Hash = ( ( Hash << SEED ) + Hash ) + Char;
-        } while ( ++Cnt < Length && *( ++String ) );
+    Hash = RANDOM_KEY;
 
-        return Hash;
+    if ( ! String ) {
+      return 0;
     }
-}
 
+    do {
+      Char = *String;
+
+      //
+      // turn the character to uppercase
+      //
+      if ( Char >= 'a' && Char <= 'z' ) {
+        Char -= 0x20;
+      }
+
+      Hash = ( ( Hash << SEED ) + Hash ) + Char;
+    } while ( ++Cnt < Length && *( ++String ) );
+
+    return Hash;
+  }
+}  // namespace imperium::crypto

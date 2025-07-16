@@ -16,9 +16,7 @@
 
 #ifdef IMPERIUM_SHELLCODE
 
-VOID Main(
-    IN PVOID Params
-);
+VOID Main( IN PVOID Params );
 
 /*!
  * @brief
@@ -29,139 +27,125 @@ VOID Main(
  * @param Param
  *  parameters
  */
-EXTERN_C FUNC VOID PreMain(
-    PVOID Params
-) {
-    PINSTANCE Instance = { 0 };
-    PPVOID    MmAddr   = { 0 };
-    PPEB      Peb      = NtCurrentPeb();
+EXTERN_C FUNC VOID PreMain( PVOID Params ) {
+  PINSTANCE Instance = { 0 };
+  PPVOID    MmAddr   = { 0 };
+  PPEB      Peb      = NtCurrentPeb();
 
-    //
-    // check if there are enough heaps to hold our instance
-    //
-    if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
-        return;
-    }
+  //
+  // check if there are enough heaps to hold our instance
+  //
+  if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
+    return;
+  }
 
-    //
-    // get the address of last heap to use to store a pointer to our instance
-    //
-    MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
+  //
+  // get the address of last heap to use to store a pointer to our instance
+  //
+  MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
 
-    //
-    // allocate memory for the instance
-    //
-    if ( ! ( *MmAddr = imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
-        return;
-    }
+  //
+  // allocate memory for the instance
+  //
+  if ( ! ( *MmAddr = imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
+    return;
+  }
 
-    //
-    // set a context to find the instance struct in memory
-    //
-    Instance = static_cast<PINSTANCE>( *MmAddr );
-    Instance->Context = 0xc0debabe;
+  //
+  // set a context to find the instance struct in memory
+  //
+  Instance          = static_cast< PINSTANCE >( *MmAddr );
+  Instance->Context = 0xc0debabe;
 
-    //
-    // get the base address of the current implant in memory and the end.
-    // subtract the implant end address with the start address you will
-    // get the size of the implant in memory
-    //
-    Instance->Base.Buffer = StRipStart();
-    Instance->Base.Length = U_PTR( StRipEnd() ) - U_PTR( Instance->Base.Buffer );
+  //
+  // get the base address of the current implant in memory and the end.
+  // subtract the implant end address with the start address you will
+  // get the size of the implant in memory
+  //
+  Instance->Base.Buffer = StRipStart();
+  Instance->Base.Length = U_PTR( StRipEnd() ) - U_PTR( Instance->Base.Buffer );
 
-    //
-    // now execute the implant entrypoint
-    //
-    Main( Params );
+  //
+  // now execute the implant entrypoint
+  //
+  Main( Params );
 }
 #elif IMPERIUM_EXE
-INT Main(
-    IN INT argc,
-    IN PCSTR argv[]
-);
+INT Main( IN INT argc, IN PCSTR argv[] );
 
-INT main(
-    IN INT argc,
-    IN PCSTR argv[]
-) {
-    PINSTANCE Instance = { 0 };
-    PPVOID    MmAddr   = { 0 };
-    PPEB      Peb      = NtCurrentPeb();
+INT main( IN INT argc, IN PCSTR argv[] ) {
+  PINSTANCE Instance = { 0 };
+  PPVOID    MmAddr   = { 0 };
+  PPEB      Peb      = NtCurrentPeb();
 
-    //
-    // check if there are enough heaps to hold our instance
-    //
-    if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
-        return EXIT_FAILURE;
-    }
+  //
+  // check if there are enough heaps to hold our instance
+  //
+  if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
+    return EXIT_FAILURE;
+  }
 
-    //
-    // get the address of last heap to use to store a pointer to our instance
-    //
-    MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
+  //
+  // get the address of last heap to use to store a pointer to our instance
+  //
+  MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
 
-    //
-    // allocate memory for the instance
-    //
-    if ( ! ( *MmAddr = imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
-        return EXIT_FAILURE;
-    }
+  //
+  // allocate memory for the instance
+  //
+  if ( ! ( *MmAddr = imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
+    return EXIT_FAILURE;
+  }
 
-    //
-    // set a context to find the instance struct in memory
-    //
-    Instance = static_cast<PINSTANCE>( *MmAddr );
-    Instance->Context = 0xc0debabe;
+  //
+  // set a context to find the instance struct in memory
+  //
+  Instance          = static_cast< PINSTANCE >( *MmAddr );
+  Instance->Context = 0xc0debabe;
 
-    //
-    // now execute the implant entrypoint
-    //
-    return Main( argc, argv );
+  //
+  // now execute the implant entrypoint
+  //
+  return Main( argc, argv );
 }
 
 #elif IMPERIUM_BOF
-INT Main(
-    IN INT argc,
-    IN PCSTR argv[]
-);
+INT Main( IN INT argc, IN PCSTR argv[] );
 
-VOID go(
-    IN INT argc,
-    IN PCSTR argv[]
-) {
-    PINSTANCE Instance = { 0 };
-    PPVOID    MmAddr   = { 0 };
-    PPEB      Peb      = NtCurrentPeb();
+VOID go( IN INT argc, IN PCSTR argv[] ) {
+  PINSTANCE Instance = { 0 };
+  PPVOID    MmAddr   = { 0 };
+  PPEB      Peb      = NtCurrentPeb();
 
-    //
-    // check if there are enough heaps to hold our instance
-    //
-    if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
-        return;
-    }
+  //
+  // check if there are enough heaps to hold our instance
+  //
+  if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
+    return;
+  }
 
-    //
-    // get the address of last heap to use to store a pointer to our instance
-    //
-    MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
+  //
+  // get the address of last heap to use to store a pointer to our instance
+  //
+  MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
 
-    //
-    // allocate memory for the instance
-    //
-    if ( ! ( *MmAddr = Instance = imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
-        return;
-    }
+  //
+  // allocate memory for the instance
+  //
+  if ( ! ( *MmAddr = Instance = imperium::mem::alloc( sizeof( INSTANCE ) ) ) ) {
+    return;
+  }
 
-    //
-    // set a context to find the instance struct in memory
-    //
-    Instance->Context = 0xc0debabe;
+  //
+  // set a context to find the instance struct in memory
+  //
+  Instance->Context = 0xc0debabe;
 
-    //
-    // now execute the implant entrypoint
-    //
-    Main( argc, argv );
+  //
+  // now execute the implant entrypoint
+  //
+  Main( argc, argv );
 }
-#endif //IMPERIUM_*
+#endif  // IMPERIUM_*
 
-#endif //IMPERIUM_H
+#endif  // IMPERIUM_H
