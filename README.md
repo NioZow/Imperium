@@ -45,7 +45,7 @@ The recommended compilations methods are through `nix` and `docker` (docker just
 > [!TIP]
 > You can probably compile the project from any type of operating system if you meet the dependencies. However, your package manager is probably gonna use the latest version of the `g++` compiler, and it is known that when upgrading things break.
 >
-> So if you want to be sure that nothing is gonna break, I recommended using `nix` which uses a fixed version of the compiler.
+> So if you want to be sure that nothing breaks, I recommended using `nix` which uses a fixed version of the compiler.
 
 ## Nix
 

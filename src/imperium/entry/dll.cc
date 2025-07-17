@@ -1,4 +1,4 @@
-#include <imperium.hpp>
+#include <imperium.h>
 
 BOOL WINAPI DllMain( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved ) {
   switch ( fdwReason ) {
@@ -18,7 +18,7 @@ BOOL WINAPI DllMain( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved ) {
   return TRUE;
 }
 
-EXTERN_C __declspec( dllexport ) void Imperium() {
+extern "C" __declspec( dllexport ) void Imperium() {
   imperium::instance::init();
   imperium::instance::start();
 }

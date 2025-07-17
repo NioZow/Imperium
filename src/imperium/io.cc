@@ -1,4 +1,5 @@
-#include <imperium/crypto.hpp>
+#include <cstdint>
+#include <imperium/crypto.h>
 #include <imperium/defs.h>
 #include <imperium/instance.h>
 #include <imperium/macros.h>
@@ -18,12 +19,12 @@ namespace imperium::io {
    * @param ...
    *  printf parameters
    */
-  FUNC VOID printf( IN PCSTR fmt, ... ) {
+  declfn void printf( IN const char* fmt, ... ) {
     IMPERIUM_INSTANCE
 
-    INT     OutputSize   = { 0 };
-    PCHAR   OutputString = { 0 };
-    va_list VaListArg    = { 0 };
+    uint32_t OutputSize   = { 0 };
+    char*    OutputString = { 0 };
+    va_list  VaListArg    = { 0 };
 
     //
     // sanity check
@@ -60,8 +61,8 @@ namespace imperium::io {
     //
     // write it to the console
     //
-    win32::call< fnWriteConsoleA >(
-        H_FUNC( "kernel32!WriteConsoleA" ), Instance()->ConsoleOutput, OutputString, OutputSize, nullptr, nullptr );
+    win32::call< fnWriteConsoleA >( H_FUNC( "kernel32!WriteConsoleA" ), Instance()->ConsoleOutput, OutputString,
+        OutputSize, nullptr, nullptr );
 
     //
     // free the string
@@ -71,4 +72,4 @@ namespace imperium::io {
 
     va_end( VaListArg );
   }
-} // namespace imperium::io
+}  // namespace imperium::io

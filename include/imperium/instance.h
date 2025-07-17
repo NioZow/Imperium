@@ -1,3 +1,6 @@
+#ifndef IMPERIUM_INSTANCE
+#define IMPERIUM_INSTANCE
+
 #include <imperium/defs.h>
 
 namespace imperium::instance {
@@ -27,8 +30,10 @@ namespace imperium::instance {
      * @param Ssn
      *  ssn of the syscall
      */
-    PSYMBOL add( SYMBOL_HASH SymHash, PVOID SymAddr, USHORT Ssn );
+    PSYMBOL add( _In_ SYMBOL_HASH SymHash, _In_ void* SymAddr, _In_ uint16_t Ssn );
 
-    PSYMBOL get( PSYMBOL_HASH SymbolHash );
+    PSYMBOL get( _In_ PSYMBOL_HASH SymbolHash );
   }  // namespace symbol
 }  // namespace imperium::instance
+
+#endif  // IMPERIUM_INSTANCE

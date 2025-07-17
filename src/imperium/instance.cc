@@ -1,4 +1,5 @@
-#include <imperium/crypto.hpp>
+#include <cstdint>
+#include <imperium/crypto.h>
 #include <imperium/defs.h>
 #include <imperium/instance.h>
 #include <imperium/ldr.h>
@@ -14,11 +15,11 @@ namespace imperium::instance {
    * @return
    *  pointer to the instance
    */
-  FUNC PINSTANCE get() {
+  declfn PINSTANCE get() {
     PINSTANCE Instance = { 0 };
-    ULONG     Context  = { 0 };
+    uint32_t  Context  = { 0 };
 
-    for ( int i = 0; i < NtCurrentPeb()->NumberOfHeaps; i++ ) {
+    for ( uint32_t i = 0; i < NtCurrentPeb()->NumberOfHeaps; i++ ) {
       Context = ( ( PINSTANCE ) ( NtCurrentPeb()->ProcessHeaps[ i ] ) )->Context;
 
       if ( Context == 0xc0debabe ) {
@@ -39,7 +40,7 @@ namespace imperium::instance {
    * @param Param
    *  parameters
    */
-  FUNC PINSTANCE init() {
+  declfn PINSTANCE init() {
     PINSTANCE Instance = { 0 };
     PPVOID    MmAddr   = { 0 };
     PPEB      Peb      = NtCurrentPeb();
@@ -87,7 +88,7 @@ namespace imperium::instance {
      * @return
      *  function address struct
      */
-    FUNC PSYMBOL get( PSYMBOL_HASH FuncHash ) {
+    declfn PSYMBOL get( PSYMBOL_HASH FuncHash ) {
       IMPERIUM_INSTANCE
 
       PSYMBOL FuncAddr = Instance()->Symbol;
@@ -127,7 +128,7 @@ namespace imperium::instance {
      * @param Ssn
      *  ssn of the syscall
      */
-    FUNC PSYMBOL add( SYMBOL_HASH SymHash, PVOID SymAddr, USHORT Ssn = 0 ) {
+    declfn PSYMBOL add( SYMBOL_HASH SymHash, PVOID SymAddr, USHORT Ssn = 0 ) {
       IMPERIUM_INSTANCE
 
       PSYMBOL*          Sym    = &Instance()->Symbol;

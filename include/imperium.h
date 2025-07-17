@@ -2,7 +2,7 @@
 #define IMPERIUM_H
 
 // imperium individual headers
-#include <imperium/crypto.hpp>
+#include <imperium/crypto.h>
 #include <imperium/defs.h>
 #include <imperium/instance.h>
 #include <imperium/io.h>

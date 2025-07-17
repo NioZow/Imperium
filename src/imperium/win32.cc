@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <imperium/defs.h>
 #include <imperium/instance.h>
 #include <imperium/macros.h>
@@ -17,12 +18,12 @@ namespace imperium::win32 {
    * @return
    *  symbol
    */
-  FUNC PSYMBOL resolve( SYMBOL_HASH SymHash, ULONG Flags ) {
+  declfn PSYMBOL resolve( SYMBOL_HASH SymHash, uint32_t Flags ) {
     IMPERIUM_INSTANCE
 
     NTSTATUS NtStatus = { 0 };
     PSYMBOL  Sym      = { 0 };
-    PVOID    Module   = { 0 };
+    void*    Module   = { 0 };
     SYSCALL  Func     = { 0 };
 
     //
@@ -79,4 +80,4 @@ namespace imperium::win32 {
 
     return Sym;
   }
-} // namespace imperium::win32
+}  // namespace imperium::win32

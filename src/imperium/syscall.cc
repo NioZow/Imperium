@@ -1,4 +1,6 @@
-#include <imperium/crypto.hpp>
+#include "imperium/macros.h"
+
+#include <imperium/crypto.h>
 #include <imperium/syscall.h>
 
 namespace imperium::syscall {
@@ -15,10 +17,10 @@ namespace imperium::syscall {
    * @return
    *  pointer to a data structure containing information about the syscall
    */
-  FUNC NTSTATUS resolve( IN SYMBOL_HASH SyscallHash, OUT PSYSCALL Syscall ) {
-    PBYTE SyscallAddr      = { 0 };
-    PBYTE FirstSyscallAddr = { 0 };
-    PVOID Ntdll            = { 0 };
+  declfn NTSTATUS resolve( _In_ SYMBOL_HASH SyscallHash, _Out_ PSYSCALL Syscall ) {
+    byte* SyscallAddr      = { 0 };
+    byte* FirstSyscallAddr = { 0 };
+    void* Ntdll            = { 0 };
 
     //
     // sanity check
@@ -73,4 +75,4 @@ namespace imperium::syscall {
 
     return STATUS_SUCCESS;
   }
-} // namespace imperium::syscall
+}  // namespace imperium::syscall

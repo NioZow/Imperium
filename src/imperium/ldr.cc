@@ -1,4 +1,5 @@
-#include <imperium/crypto.hpp>
+#include <cstdint>
+#include <imperium/crypto.h>
 #include <imperium/defs.h>
 #include <imperium/ldr.h>
 #include <imperium/macros.h>
@@ -16,7 +17,7 @@ namespace imperium::ldr {
    * @return
    *  address of the DLL base ( NULL if not found )
    */
-  FUNC PVOID module( IN ULONG Hash ) {
+  declfn void* module( _In_ uint32_t Hash ) {
     PLDR_DATA_TABLE_ENTRY Data  = { 0 };
     PLIST_ENTRY           Head  = { 0 };
     PLIST_ENTRY           Entry = { 0 };
@@ -27,7 +28,10 @@ namespace imperium::ldr {
     for ( ; Head != Entry; Entry = Entry->Flink ) {
       Data = reinterpret_cast< PLDR_DATA_TABLE_ENTRY >( Entry );
 
-      if ( crypto::hash_string( Data->BaseDllName.Buffer, Data->BaseDllName.Length / 2 ) == Hash ) {
+      //
+      // FIXME: use length instead of null byte
+      //
+      if ( crypto::dbj2( Data->BaseDllName.Buffer, static_cast< uint32_t >( -1 ), true ) == Hash ) {
         return Data->DllBase;
       }
     }
@@ -50,16 +54,16 @@ namespace imperium::ldr {
    * @return
    *  address of the function ( NULL if not found )
    */
-  FUNC PVOID function( IN PVOID Library, IN ULONG Function ) {
-    PVOID                   Address    = { 0 };
+  declfn void* function( _In_ void* Library, _In_ uint32_t Function ) {
+    void*                   Address    = { 0 };
     PIMAGE_NT_HEADERS       NtHeader   = { 0 };
     PIMAGE_DOS_HEADER       DosHeader  = { 0 };
     PIMAGE_EXPORT_DIRECTORY ExpDir     = { 0 };
     SIZE_T                  ExpDirSize = { 0 };
-    PDWORD                  AddrNames  = { 0 };
-    PDWORD                  AddrFuncs  = { 0 };
-    PWORD                   AddrOrdns  = { 0 };
-    PCHAR                   FuncName   = { 0 };
+    uint32_t*               AddrNames  = { 0 };
+    uint32_t*               AddrFuncs  = { 0 };
+    uint16_t*               AddrOrdns  = { 0 };
+    char*                   FuncName   = { 0 };
 
     //
     // sanity check arguments
@@ -86,25 +90,26 @@ namespace imperium::ldr {
         NtHeader->OptionalHeader.DataDirectory[ IMAGE_DIRECTORY_ENTRY_EXPORT ].VirtualAddress );
     ExpDirSize = NtHeader->OptionalHeader.DataDirectory[ IMAGE_DIRECTORY_ENTRY_EXPORT ].Size;
 
-    AddrNames = reinterpret_cast< PDWORD >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfNames );
-    AddrFuncs = reinterpret_cast< PDWORD >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfFunctions );
-    AddrOrdns = reinterpret_cast< PWORD >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfNameOrdinals );
+    AddrNames = reinterpret_cast< uint32_t* >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfNames );
+    AddrFuncs = reinterpret_cast< uint32_t* >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfFunctions );
+    AddrOrdns =
+        reinterpret_cast< uint16_t* >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfNameOrdinals );
 
     //
     // iterate over export address table director
     //
-    for ( DWORD i = 0; i < ExpDir->NumberOfNames; i++ ) {
+    for ( uint32_t i = 0; i < ExpDir->NumberOfNames; i++ ) {
       //
       // retrieve function name
       //
-      FuncName = reinterpret_cast< PCHAR >( reinterpret_cast< ULONG_PTR >( Library ) + AddrNames[ i ] );
+      FuncName = reinterpret_cast< char* >( reinterpret_cast< uint64_t >( Library ) + AddrNames[ i ] );
 
       //
       // hash function name from Iat and
       // check the function name is what we are searching for.
       // if not found keep searching.
       //
-      if ( crypto::hash_string( FuncName, 0xFFFFFFFF ) != Function ) {
+      if ( crypto::dbj2( FuncName, static_cast< uint32_t >( -1 ), true ) != Function ) {
         continue;
       }
 
@@ -128,4 +133,4 @@ namespace imperium::ldr {
 
     return Address;
   }
-} // namespace imperium::ldr
+}  // namespace imperium::ldr

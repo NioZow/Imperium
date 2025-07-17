@@ -1,4 +1,5 @@
-#include <imperium/crypto.hpp>
+#include <cstdint>
+#include <imperium/crypto.h>
 #include <imperium/defs.h>
 #include <imperium/macros.h>
 #include <imperium/win32.h>
@@ -12,10 +13,8 @@ namespace imperium::mem {
    * @param Size
    *  number of bytes to allocate
    */
-  FUNC PVOID alloc( ULONG size ) {
-    return win32::call< fnRtlAllocateHeap >( H_FUNC( "ntdll!RtlAllocateHeap" ),
-        NtProcessHeap(),
-        HEAP_ZERO_MEMORY,
+  declfn void* alloc( uint32_t size ) {
+    return win32::call< fnRtlAllocateHeap >( H_FUNC( "ntdll!RtlAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY,
         size );
   }
 
@@ -27,7 +26,7 @@ namespace imperium::mem {
    * @param ptr
    *  pointer to memory that needs to be freed
    */
-  FUNC VOID free( PVOID ptr ) {
+  declfn void free( void* ptr ) {
     win32::call< fnRtlFreeHeap >( H_FUNC( "ntdll!RtlFreeHeap" ), NtProcessHeap(), 0, ptr );
   }
 
@@ -45,11 +44,8 @@ namespace imperium::mem {
    * @return
    *  pointer to the reallocated memory
    */
-  FUNC PVOID realloc( PVOID ptr, ULONG size ) {
-    win32::call< fnRtlReAllocateHeap >( H_FUNC( "ntdll!RtlReAllocateHeap" ),
-        NtProcessHeap(),
-        HEAP_ZERO_MEMORY,
-        ptr,
+  declfn void* realloc( void* ptr, uint32_t size ) {
+    win32::call< fnRtlReAllocateHeap >( H_FUNC( "ntdll!RtlReAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY, ptr,
         size );
   }
 }  // namespace imperium::mem

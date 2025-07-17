@@ -1,22 +1,19 @@
 #ifndef IMPERIUM_MACROS
 #define IMPERIUM_MACROS
 
+#include <cstdint>
+#include <imperium/instance.h>
 #include <imperium/io.h>
 
 #define IMPERIUM_INSTANCE PINSTANCE __LocalInstance = imperium::instance::get();
 #define Instance()        ( ( PINSTANCE ) ( __LocalInstance ) )
 
 #ifdef IMPERIUM_PIC
-  #define D_SEC( x )  __attribute__( ( section( ".text$" #x "" ) ) )
-  #define ST_GLOBAL   __attribute__( ( section( ".global" ) ) )
-  #define ST_READONLY __attribute__( ( section( ".rdata" ) ) )
-  #define FUNC        D_SEC( B )
-EXTERN_C PVOID StRipStart();
-EXTERN_C PVOID StRipEnd();
+  #define declfn __attribute__( ( section( ".text$B" ) ) )
+extern "C" void* StRipStart();
+extern "C" void* StRipEnd();
 #else
-  #define FUNC
-  #define ST_GLOBAL
-  #define ST_READONLY
+  #define declfn
   #define StRipStart() nullptr
   #define StRipEnd()   nullptr
 #endif
@@ -24,34 +21,34 @@ EXTERN_C PVOID StRipEnd();
 //
 // pseudo handles
 //
-#define NtCurrentProcess()              ( ( HANDLE ) ( LONG_PTR ) ( -1 ) )
-#define NtCurrentThread()               ( ( HANDLE ) ( LONG_PTR ) ( -2 ) )
-#define NtCurrentProcessToken()         ( ( HANDLE ) ( LONG_PTR ) ( -4 ) )
-#define NtCurrentThreadToken()          ( ( HANDLE ) ( LONG_PTR ) ( -5 ) )
-#define NtCurrentThreadEffectiveToken() ( ( HANDLE ) ( LONG_PTR ) ( -6 ) )
+#define NtCurrentProcess()              ( ( HANDLE ) ( uint64_t ) ( -1 ) )
+#define NtCurrentThread()               ( ( HANDLE ) ( uint64_t ) ( -2 ) )
+#define NtCurrentProcessToken()         ( ( HANDLE ) ( uint64_t ) ( -4 ) )
+#define NtCurrentThreadToken()          ( ( HANDLE ) ( uint64_t ) ( -5 ) )
+#define NtCurrentThreadEffectiveToken() ( ( HANDLE ) ( uint64_t ) ( -6 ) )
 
 //
 // peb/teb related macros
 //
 #define NtLastError()               ( NtCurrentTeb()->LastErrorValue )
 #define NtLastStatus()              ( NtCurrentTeb()->LastStatusValue )
-#define NtCurrentHeap()             ( ( PVOID ) NtCurrentPeb()->ProcessHeap )
+#define NtCurrentHeap()             ( ( void* ) NtCurrentPeb()->ProcessHeap )
 #define NtProcessHeap()             NtCurrentHeap()
 #define ZwCurrentProcess()          NtCurrentProcess()
 #define ZwCurrentThread()           NtCurrentThread()
-#define NtProcessImage()            ( PWCHAR ) NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer
-#define NtProcessCurrentDirectory() ( PWCHAR ) NtCurrentPeb()->ProcessParameters->CurrentDirectory.DosPath
+#define NtProcessImage()            ( wchart_t* ) NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer
+#define NtProcessCurrentDirectory() ( wchart_t* ) NtCurrentPeb()->ProcessParameters->CurrentDirectory.DosPath
 
 #if _WIN64
-  #define NtCurrentProcessId() ( ( DWORD ) ( __readgsdword( 0x40 ) ) )
+  #define NtCurrentProcessId() ( ( uint32_t ) ( __readgsdword( 0x40 ) ) )
 #elif _WIN32
-  #define NtCurrentProcessId() ( ( DWORD ) ( __readfsdword( 0x20 ) ) )
+  #define NtCurrentProcessId() ( ( uint32_t ) ( __readfsdword( 0x20 ) ) )
 #endif
 
 #if _WIN64
-  #define NtCurrentThreadId() ( ( DWORD ) ( __readgsdword( 0x48 ) ) )
+  #define NtCurrentThreadId() ( ( uint32_t ) ( __readgsdword( 0x48 ) ) )
 #elif _WIN32
-  #define NtCurrentThreadId() ( ( DWORD ) ( __readgsdword( 0x24 ) ) )
+  #define NtCurrentThreadId() ( ( uint32_t ) ( __readgsdword( 0x24 ) ) )
 #endif
 
 //

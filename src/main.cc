@@ -1,7 +1,12 @@
-#include <imperium.hpp>
+#include "imperium/crypto.h"
+#include "imperium/io.h"
+#include "imperium/macros.h"
+
+#include <imperium.h>
+#include <stdio.h>
 
 namespace imperium::instance {
-  FUNC void start() {
+  declfn void start() {
     IMPERIUM_INSTANCE
 
     //

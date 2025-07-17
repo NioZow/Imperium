@@ -82,6 +82,10 @@ dll: $(OBJ_DLL)
 	@ echo "-> compiling x64 dll"
 	@ $(CXX) $(SRC_DLL) $(OBJ_DLL) -o $(OUT_DLL) $(LDFLAGS_DLL) $(CFLAGS_DLL)
 
+ldr:
+	@ echo "-> compiling loader"
+	@ $(CXX) scripts/loader.c -o bin/loader.x64.exe
+
 ##
 ## build source to object files
 ##
@@ -92,13 +96,6 @@ bin/obj/%.o: %.cc
 bin/obj/%.o: %.asm
 	@ echo "-> compiling $< to $(notdir $@)"
 	@ nasm -f win64 -o $@ $<
-
-##
-## build the loader
-##
-loader:
-	@ echo "-> compiling loader"
-	@ $(CXX) scripts/loader.c -o bin/loader.x64.exe
 
 ##
 ## Clean object files and other binaries

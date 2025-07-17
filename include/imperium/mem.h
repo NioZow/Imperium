@@ -1,3 +1,7 @@
+#ifndef IMPERIUM_MEM
+#define IMPERIUM_MEM
+
+#include <cstdint>
 #include <imperium/defs.h>
 
 namespace imperium::mem {
@@ -17,8 +21,8 @@ namespace imperium::mem {
    *  the size of the buffer
    */
   template< typename T >
-  inline VOID set( PVOID Out, T In, ULONG Size ) {
-    for ( int i = 0; i < Size / sizeof( T ); i++ ) {
+  inline VOID set( void* Out, T In, uint32_t Size ) {
+    for ( uint32_t i = 0; i < Size / sizeof( T ); i++ ) {
       ( ( T* ) Out )[ i ] = In;
     }
   }
@@ -36,8 +40,8 @@ namespace imperium::mem {
    * @param Size
    *  the size of the buffer
    */
-  inline VOID copy( PVOID Out, PVOID In, ULONG Size ) {
-    for ( ULONG Cnt = 0; Cnt < Size; Cnt++ ) {
+  inline VOID copy( void* Out, void* In, uint32_t Size ) {
+    for ( uint32_t Cnt = 0; Cnt < Size; Cnt++ ) {
       ( ( PBYTE ) Out )[ Cnt ] = ( ( PBYTE ) In )[ Cnt ];
     }
   }
@@ -52,8 +56,8 @@ namespace imperium::mem {
    * @param Size
    *  the size of the buffer
    */
-  inline VOID zero( PVOID Buffer, ULONG Size ) {
-    set< BYTE >( Buffer, 0, Size );
+  inline VOID zero( void* Buffer, uint32_t Size ) {
+    set< unsigned char >( Buffer, 0, Size );
   }
 
   /*!
@@ -64,7 +68,7 @@ namespace imperium::mem {
    * @param Size
    *  number of bytes to allocate
    */
-  PVOID alloc( ULONG size );
+  PVOID alloc( uint32_t size );
 
   /*!
    * @brief
@@ -74,7 +78,7 @@ namespace imperium::mem {
    * @param ptr
    *  pointer to memory that needs to be freed
    */
-  VOID free( PVOID ptr );
+  VOID free( void* ptr );
 
   /*!
    * @brief
@@ -90,5 +94,7 @@ namespace imperium::mem {
    * @return
    *  pointer to the reallocated memory
    */
-  PVOID realloc( PVOID ptr, ULONG size );
+  PVOID realloc( void* ptr, uint32_t size );
 }  // namespace imperium::mem
+
+#endif  // IMPERIUM_MEM
