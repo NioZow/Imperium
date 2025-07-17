@@ -6,7 +6,7 @@
 #define IMPERIUM_INSTANCE PINSTANCE __LocalInstance = imperium::instance::get();
 #define Instance()        ( ( PINSTANCE ) ( __LocalInstance ) )
 
-#ifdef IMPERIUM_SHELLCODE
+#ifdef IMPERIUM_PIC
   #define D_SEC( x )  __attribute__( ( section( ".text$" #x "" ) ) )
   #define ST_GLOBAL   __attribute__( ( section( ".global" ) ) )
   #define ST_READONLY __attribute__( ( section( ".rdata" ) ) )

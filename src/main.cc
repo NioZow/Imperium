@@ -12,6 +12,6 @@ namespace imperium::instance {
       return;
     }
 
-    win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), nullptr, "Yo HackThePlanet", "Imperium", MB_OK );
+    win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), nullptr, "HackThePlanet", "Imperium", MB_OK );
   }
 }  // namespace imperium::instance
