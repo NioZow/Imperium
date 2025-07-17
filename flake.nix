@@ -1,5 +1,5 @@
 {
-  description = "Stardust cross-compilation environment";
+  description = "Imperium cross-compilation environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -32,8 +32,11 @@
             echo "======================================"
             echo ""
             echo "Available commands:"
-            echo "  make shellcode  - Build x64 shellcode x64"
-            echo "  make clean      - Clean binaries"
+            echo "  make pic     - Build x64 shellcode"
+            echo "  make dll     - Build x64 dll"
+            echo "  make exe     - Build x64 exe"
+            echo "  make loader  - Build x64 shellcode loader"
+            echo "  make clean   - Clean binaries"
             echo ""
             
             echo "Environment ready!"
