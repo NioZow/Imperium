@@ -215,7 +215,7 @@ struct cipher_t {
 // encrypting with a simple xor
 // no key repetition, get a new seed instead
 template< typename T1, typename T2, size_t len >
-consteval auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
+constexpr auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
   auto blob = cipher_t< T1, T2, len > { seed, {} };
   T1   mask = static_cast< T1 >( ~T1( 0 ) );
 
@@ -227,12 +227,13 @@ consteval auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
   return blob;
 }
 
-#define ENC_STRING( STRING )                                                              \
-  ( []() -> const char* {                                                                 \
-    static constexpr uint32_t seed   = get_initial_seed< uint32_t >();                    \
-    static constexpr auto     blob   = encrypt< char, uint32_t >( STRING, seed );         \
-    static auto               result = encrypt< char, uint32_t >( blob.data, blob.seed ); \
-    return result.data;                                                                   \
+#define ENC_STRING( STRING )                                                                \
+  ( []() -> const char* {                                                                   \
+    constexpr uint32_t seed         = get_initial_seed< uint32_t >();                       \
+    constexpr auto     blob         = encrypt< char, uint32_t >( STRING, seed );            \
+    volatile uint32_t  runtime_seed = blob.seed;                                            \
+    static auto        result       = encrypt< char, uint32_t >( blob.data, runtime_seed ); \
+    return result.data;                                                                     \
   }() )
 
 #endif  // IMPERIUM_CRYPTO

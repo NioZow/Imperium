@@ -36,7 +36,7 @@
             echo "  make pic       - Build x64 shellcode"
             echo "  make dll       - Build x64 dll"
             echo "  make exe       - Build x64 exe"
-            echo "  make loader    - Build x64 shellcode loader"
+            echo "  make ldr       - Build x64 shellcode loader"
             echo "  make clean     - Clean binaries"
             echo "  compiledb make - Generate LSP definitions"
             echo ""

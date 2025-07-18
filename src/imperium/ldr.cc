@@ -123,7 +123,7 @@ namespace imperium::ldr {
       //
       if ( ( U_PTR( Address ) >= U_PTR( ExpDir ) ) && ( U_PTR( Address ) < U_PTR( ExpDir ) + ExpDirSize ) ) {
         //
-        // todo: add support for forwarded functions
+        // TODO: add support for forwarded functions
         //
         __debugbreak();
       }

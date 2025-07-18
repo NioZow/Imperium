@@ -7,7 +7,8 @@
 - Global instance stored in the `PEB`
 - Native support for `(in)direct syscall`
 - No `IAT`, can call any `win32` or `NT` API without having to worry about resolving it (through fancy syntax)
-- Compile time hashing using `consteval`
+- Compile time string encryption using `consteval`
+- Compile time string hashing using `consteval`
 - Output to `shellcode`, `dll`, `exe` 
 
 ## Template
@@ -51,7 +52,7 @@ The recommended compilations methods are through `nix` and `docker` (docker just
 >
 > So if you want to be sure that nothing breaks, I recommended using `nix` which uses a fixed version of the compiler.
 
-## Nix
+### Nix
 
 Just type `nix develop` and you will have all dependencies :
 
@@ -61,18 +62,19 @@ Imperium cross-compilation environment
 ======================================
 
 Available commands:
-  make pic     - Build x64 shellcode
-  make dll     - Build x64 dll
-  make exe     - Build x64 exe
-  make loader  - Build x64 shellcode loader
-  make clean   - Clean binaries
+  make pic       - Build x64 shellcode
+  make dll       - Build x64 dll
+  make exe       - Build x64 exe
+  make ldr       - Build x64 shellcode loader
+  make clean     - Clean binaries
+  compiledb make - Generate LSP definitions
 
 Environment ready!
 $ make exe
 -> compiling x64 exe
 ```
 
-## Docker
+### Docker
 
 You can build the image :
 
@@ -89,11 +91,12 @@ Imperium cross-compilation environment
 ======================================
 
 Available commands:
-  make pic     - Build x64 shellcode
-  make dll     - Build x64 dll
-  make exe     - Build x64 exe
-  make loader  - Build x64 shellcode loader
-  make clean   - Clean binaries
+  make pic       - Build x64 shellcode
+  make dll       - Build x64 dll
+  make exe       - Build x64 exe
+  make ldr       - Build x64 shellcode loader
+  make clean     - Clean binaries
+  compiledb make - Generate LSP definitions
 
 Environment ready!
 bash-5.2# make exe
@@ -105,15 +108,15 @@ bash-5.2# make exe
 ### Def
 
 Takes an `url` as argument and returns the definition for the function ready to be copy and paste as a type :
-```sh
 
+```sh
 ./scripts/def.py
 usage: ./scripts/def.py <url>
 ```
 
 # Credits
 
-This project could not have been accomplished without the amazing work of [5pider](https://twitter.com/C5pider) on those projects :
+This project could not have been accomplished without the amazing work of [5pider](https://x.com/C5pider) on those projects :
 
-- [Stardust](https://github.com/Cracked5pider/Stardust) : I would have been able to make this template PIC otherwise
-- Firebeam template : my template is highly inspired from it
+- [Stardust](https://github.com/Cracked5pider/Stardust): I would have been able to make this template `PIC` otherwise
+- Firebeam template: my template is highly inspired from it
