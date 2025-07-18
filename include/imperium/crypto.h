@@ -35,7 +35,7 @@ namespace imperium::crypto {
   template< typename T >
   constexpr uint32_t dbj2( _In_ const T* buf, _In_ uint32_t len, _In_ bool to_upper = false ) {
     uint32_t hash = { 0 };
-    uint8_t  tmp  = { 0 };
+    T        tmp  = { 0 };
     uint32_t cnt  = { 0 };
 
     hash = RANDOM_KEY;

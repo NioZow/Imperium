@@ -32,6 +32,14 @@ typedef struct _BUFFER {
   uint32_t Length;
 } BUFFER, *PBUFFER;
 
+// in the context of shellcode you can only pass a single argument
+// when creating a new thread for example
+// so we wrap argument passing into a structure for portability
+typedef struct _args {
+  const char** arguments;
+  uint32_t     length;
+} args_t;
+
 typedef struct _SYMBOL {
   union {
     void* Address;

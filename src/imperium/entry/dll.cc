@@ -20,5 +20,5 @@ BOOL WINAPI DllMain( HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved ) {
 
 extern "C" __declspec( dllexport ) void Imperium() {
   imperium::instance::init();
-  imperium::instance::start();
+  imperium::instance::start( nullptr );
 }

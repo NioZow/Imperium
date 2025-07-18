@@ -14,7 +14,7 @@ namespace imperium::instance {
    */
   PINSTANCE get();
   PINSTANCE init();
-  void      start();
+  void      start( _In_ const args_t* args );
 
   namespace symbol {
     /*!

@@ -6,6 +6,14 @@
 #include <imperium/defs.h>
 #include <imperium/win32.h>
 
+/* Custom memory related functions
+ *
+ * WARNING:
+ * Those functions are not the same as those from the std library.
+ * Those use template and so length are different.
+ * If you use those functions the same way you use the std library,
+ * you will probably end up with some big bugs.
+ */
 namespace imperium::mem {
   /*!
    * @brief
@@ -17,7 +25,7 @@ namespace imperium::mem {
    * @param in
    *  the input char
    *
-   * @param size
+   * @param len
    *  the length of the buffer
    */
   template< typename T >
@@ -58,7 +66,7 @@ namespace imperium::mem {
    *  the length of the buffer
    */
   template< typename T >
-  constexpr uint32_t zero( T* buf, uint32_t len = 1 ) {
+  constexpr uint32_t zero( _Out_ T* buf, _In_ uint32_t len = 1 ) {
     return set( buf, static_cast< T >( 0 ), len );
   }
 
@@ -70,7 +78,7 @@ namespace imperium::mem {
    * @param size
    *  number of bytes to allocate
    */
-  inline auto alloc( uint32_t size ) {
+  inline auto alloc( _In_ uint32_t size ) {
     return win32::call< fnRtlAllocateHeap >( H_FUNC( "ntdll!RtlAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY,
         size );
   }
@@ -83,7 +91,7 @@ namespace imperium::mem {
    * @param ptr
    *  pointer to memory that needs to be freed
    */
-  inline void free( void* ptr ) {
+  inline void free( _Inout_ void* ptr ) {
     win32::call< fnRtlFreeHeap >( H_FUNC( "ntdll!RtlFreeHeap" ), NtProcessHeap(), 0, ptr );
   }
 
@@ -101,7 +109,7 @@ namespace imperium::mem {
    * @return
    *  pointer to the reallocated memory
    */
-  inline auto realloc( void* ptr, uint32_t size ) {
+  inline auto realloc( _Inout_ void* ptr, _In_ uint32_t size ) {
     win32::call< fnRtlReAllocateHeap >( H_FUNC( "ntdll!RtlReAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY, ptr,
         size );
   }
