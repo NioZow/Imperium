@@ -6,10 +6,11 @@ using namespace imperium;
  * @brief
  *  common entry point to dll/exe/shellcode output
  *  so you just have to modify this function to have your code executed
- *  dll/exe/pic have their own true entrypoint who just call this function
+ *  dll/exe/pic have their own true entrypoint which just call this function
  *
  * @param args
  *  user passed arguments
+ *
  *  WARNING: this is optional and may be `nullptr`
  *
  *  NOTE:

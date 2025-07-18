@@ -12,30 +12,34 @@
 
 ## Template
 
-```c++
-/*!
+```cpp
+#include <imperium.h>
+
+using namespace imperium;
+
+/*
  * @brief
- *  main function put your code here
+ *  common entry point to dll/exe/shellcode output
+ *  so you just have to modify this function to have your code executed
+ *  dll/exe/pic have their own true entrypoint which just call this function
  *
- * @param Param
- *  parameters
+ * @param args
+ *  user passed arguments
  */
-FUNC VOID Main(
-    IN PVOID Param
-) {
-    IMPERIUM_INSTANCE
+declfn void instance::start( _In_opt_ const args_t* args ) {
+  IMPERIUM_INSTANCE
 
-    //
-    // call LoadLibraryA to have the needed module is our peb
-    // wont be able to resolve their functions otherwise
-    //
-    if ( ! Imperium::win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), "user32.dll" ) ) {
-        return;
-    }
+  //
+  // call LoadLibraryA to have the needed module is our peb
+  // wont be able to resolve their functions otherwise
+  //
+  if ( ! win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), "user32.dll" ) ) {
+    return;
+  }
 
-    Imperium::win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), NULL, "Happy Hacking!", "Imperium", MB_OK );
+  win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), nullptr, ENC_STRING( "HackThePlanet" ),
+      args && args->length > 0 ? args->arguments[ 0 ] : "Imperium", MB_OK );
 }
-
 ```
 
 ## Compiling
