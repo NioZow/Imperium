@@ -11,10 +11,10 @@
 // Those are just enough to evade AV signatures
 //
 
+// seed only used for dbj2
+// because we then rely on dbj2 to create more seeds
 constexpr const uint32_t SEED = ( __LINE__ * 1000000 ) + ( __COUNTER__ * 1000 ) + ( ( __TIME__[ 7 ] - '0' ) * 100 ) +
                                 ( ( __TIME__[ 6 ] - '0' ) * 10 ) + ( __TIME__[ 4 ] - '0' );
-
-constexpr const uint32_t RANDOM_KEY = SEED % 0xFFFF;
 
 namespace imperium::crypto {
 
@@ -38,7 +38,7 @@ namespace imperium::crypto {
     T        tmp  = { 0 };
     uint32_t cnt  = { 0 };
 
-    hash = RANDOM_KEY;
+    hash = SEED;
 
     if ( ! buf ) {
       return 0;
@@ -141,5 +141,98 @@ consteval SYMBOL_HASH H_FUNC( _In_ const char* Symbol ) {
 
   return FuncHash;
 }
+
+
+/*
+ * @brief
+ *  try to generate a random seed
+ *  this is cryptographically unsafe and shouldn't be used outside the scope of this project
+ *  but hopefully distrituvity is good enough
+ *
+ *  INFO: setting this to consteval because you have much better options at runtime
+ *  and random stuff is complicated at compile time
+ *  btw this is AI generated and AI is not known to make secure code, another reason you
+ *  shouldn't use this
+ *
+ *
+ *  WARNING: should only be used for basic obfuscation against automatic detections like AV
+ *
+ * @return
+ *  seed
+ */
+template< typename T >
+consteval T get_initial_seed() {
+  constexpr auto mix_seed = []( T a, T b, T c ) constexpr {
+    constexpr int bits = sizeof( T ) * 8;
+    a ^= b;
+    a -= ( b << ( bits * 14 / 32 ) ) | ( b >> ( bits * 18 / 32 ) );
+    b ^= c;
+    b -= ( c << ( bits * 11 / 32 ) ) | ( c >> ( bits * 21 / 32 ) );
+    c ^= a;
+    c -= ( a << ( bits * 25 / 32 ) ) | ( a >> ( bits * 7 / 32 ) );
+    a ^= b;
+    a -= ( b << ( bits * 16 / 32 ) ) | ( b >> ( bits * 16 / 32 ) );
+    b ^= c;
+    b -= ( c << ( bits * 4 / 32 ) ) | ( c >> ( bits * 28 / 32 ) );
+    c ^= a;
+    c -= ( a << ( bits * 14 / 32 ) ) | ( a >> ( bits * 18 / 32 ) );
+    return c;
+  };
+
+  return mix_seed( imperium::crypto::dbj2( __FILE__, static_cast< T >( -1 ), false ) ^ __LINE__,
+      imperium::crypto::dbj2( __DATE__, static_cast< T >( -1 ), false ) ^
+          imperium::crypto::dbj2( __TIME__, static_cast< T >( -1 ), false ),
+      static_cast< T >( __COUNTER__ ) );
+}
+
+/*
+ * @brief
+ *  get a another seed from a seed
+ *  predictive but prevents repeating a key in xor
+ *
+ *  WARNING: completely unsafe
+ *
+ * @param seed
+ *  current seed
+ *
+ * @return
+ *  new seed
+ */
+template< typename T >
+constexpr T seed_next( _In_ T seed ) {
+  return ( T( 1103515245 ) * seed + T( 12345 ) ) % ( T( 1 ) << ( sizeof( T ) * 8 - 1 ) );
+}
+
+// cipher structure
+// seed is the key equivalent
+// but alg is so weak i won't even call key
+template< typename T1, typename T2, uint32_t N >
+struct cipher_t {
+  T2 seed;
+  T1 data[ N ];
+};
+
+// encrypting with a simple xor
+// no key repetition, get a new seed instead
+template< typename T1, typename T2, size_t len >
+consteval auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
+  auto blob = cipher_t< T1, T2, len > { seed, {} };
+  T1   mask = static_cast< T1 >( ~T1( 0 ) );
+
+  for ( size_t i = 0; i < len; i++ ) {
+    if ( i > 0 && i % sizeof( T2 ) == 0 ) seed = seed_next( seed );
+    blob.data[ i ] = buf[ i ] ^ static_cast< T1 >( seed >> ( ( i % sizeof( T2 ) ) * 8 ) ) & mask;
+  }
+
+  return blob;
+}
+
+#define ENC_STRING( STRING )                                                              \
+  ( []() -> const char* {                                                                 \
+    static constexpr uint32_t seed   = get_initial_seed< uint32_t >();                    \
+    static constexpr auto     blob   = encrypt< char, uint32_t >( STRING, seed );         \
+    static constexpr auto     result = encrypt< char, uint32_t >( blob.data, blob.seed ); \
+    return result.data;                                                                   \
+  }() )
 
 #endif  // IMPERIUM_CRYPTO
