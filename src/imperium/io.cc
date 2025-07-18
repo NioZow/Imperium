@@ -51,7 +51,7 @@ namespace imperium::io {
     // allocate space for the final string
     //
     OutputSize   = win32::call< fnVsnprintf >( H_FUNC( "msvcrt!vsnprintf" ), nullptr, 0, fmt, VaListArg ) + 1;
-    OutputString = static_cast< PCHAR >( mem::alloc( OutputSize ) );
+    OutputString = mem::alloc( OutputSize );
 
     //
     // write the final string

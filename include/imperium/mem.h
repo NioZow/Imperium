@@ -2,62 +2,64 @@
 #define IMPERIUM_MEM
 
 #include <cstdint>
+#include <imperium/crypto.h>
 #include <imperium/defs.h>
+#include <imperium/win32.h>
 
 namespace imperium::mem {
   /*!
    * @brief
    *  custom memset implementation
-   *  watch out if not specifying the type via the template it will default to int and not byte
-   *  and make some mistakes along the way
    *
-   * @param Out
+   * @param out
    *  the output buffer
    *
-   * @param In
+   * @param in
    *  the input char
    *
-   * @param Size
-   *  the size of the buffer
+   * @param size
+   *  the length of the buffer
    */
   template< typename T >
-  inline VOID set( void* Out, T In, uint32_t Size ) {
-    for ( uint32_t i = 0; i < Size / sizeof( T ); i++ ) {
-      ( ( T* ) Out )[ i ] = In;
-    }
+  constexpr uint32_t set( _In_ T* out, _In_ const T in, _In_ uint32_t len = 1 ) {
+    uint32_t cnt = 0;
+    while ( cnt < len ) out[ cnt++ ] = in;
+    return cnt;
   }
 
   /*!
    * @brief
    *  custom memcopy implementation
    *
-   * @param Out
+   * @param out
    *  the output buffer
    *
-   * @param In
+   * @param in
    *  the input buffer
    *
-   * @param Size
-   *  the size of the buffer
+   * @param len
+   *  the length of the buffer
    */
-  inline VOID copy( void* Out, void* In, uint32_t Size ) {
-    for ( uint32_t Cnt = 0; Cnt < Size; Cnt++ ) {
-      ( ( PBYTE ) Out )[ Cnt ] = ( ( PBYTE ) In )[ Cnt ];
-    }
+  template< typename T >
+  constexpr uint32_t copy( _Out_ T out, _In_ const T* in, _In_ uint32_t len ) {
+    uint32_t cnt = 0;
+    while ( cnt < len ) out[ cnt ] = in[ cnt++ ];
+    return cnt;
   }
 
   /*!
    * @brief
    *  fill a buffer with 0s
    *
-   * @param Buffer
+   * @param buf
    *  the output buffer
    *
-   * @param Size
-   *  the size of the buffer
+   * @param len
+   *  the length of the buffer
    */
-  inline VOID zero( void* Buffer, uint32_t Size ) {
-    set< unsigned char >( Buffer, 0, Size );
+  template< typename T >
+  constexpr uint32_t zero( T* buf, uint32_t len = 1 ) {
+    return set( buf, static_cast< T >( 0 ), len );
   }
 
   /*!
@@ -65,10 +67,13 @@ namespace imperium::mem {
    *  allocate some memory from the heap
    *  wrapper for ntdll!RtlAllocateHeap
    *
-   * @param Size
+   * @param size
    *  number of bytes to allocate
    */
-  PVOID alloc( uint32_t size );
+  inline auto alloc( uint32_t size ) {
+    return win32::call< fnRtlAllocateHeap >( H_FUNC( "ntdll!RtlAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY,
+        size );
+  }
 
   /*!
    * @brief
@@ -78,7 +83,9 @@ namespace imperium::mem {
    * @param ptr
    *  pointer to memory that needs to be freed
    */
-  VOID free( void* ptr );
+  inline void free( void* ptr ) {
+    win32::call< fnRtlFreeHeap >( H_FUNC( "ntdll!RtlFreeHeap" ), NtProcessHeap(), 0, ptr );
+  }
 
   /*!
    * @brief
@@ -94,7 +101,10 @@ namespace imperium::mem {
    * @return
    *  pointer to the reallocated memory
    */
-  PVOID realloc( void* ptr, uint32_t size );
+  inline auto realloc( void* ptr, uint32_t size ) {
+    win32::call< fnRtlReAllocateHeap >( H_FUNC( "ntdll!RtlReAllocateHeap" ), NtProcessHeap(), HEAP_ZERO_MEMORY, ptr,
+        size );
+  }
 }  // namespace imperium::mem
 
 #endif  // IMPERIUM_MEM
