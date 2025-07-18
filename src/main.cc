@@ -27,14 +27,17 @@ using namespace imperium;
 declfn void instance::start( _In_opt_ const args_t* args ) {
   IMPERIUM_INSTANCE
 
+  ENC_STRING( user32, "user32.dll" );
+  ENC_STRING( hack, "HackThePlanet" );
+
   //
-  // call LoadLibraryA to have the needed module is our peb
+  // call LoadLibraryA to have the needed module in our peb
   // wont be able to resolve their functions otherwise
   //
-  if ( ! win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), "user32.dll" ) ) {
+  if ( ! win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), user32 ) ) {
     return;
   }
 
-  win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), nullptr, ENC_STRING( "HackThePlanet" ),
+  win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), nullptr, hack,
       args && args->length > 0 ? args->arguments[ 0 ] : "Imperium", MB_OK );
 }

@@ -208,7 +208,6 @@ constexpr T seed_next( _In_ T seed ) {
 // but alg is so weak i won't even call key
 template< typename T1, typename T2, uint32_t N >
 struct cipher_t {
-  T2 seed;
   T1 data[ N ];
 };
 
@@ -216,7 +215,7 @@ struct cipher_t {
 // no key repetition, get a new seed instead
 template< typename T1, typename T2, size_t len >
 constexpr auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
-  auto blob = cipher_t< T1, T2, len > { seed, {} };
+  auto blob = cipher_t< T1, T2, len > { {} };
   T1   mask = static_cast< T1 >( ~T1( 0 ) );
 
   for ( size_t i = 0; i < len; i++ ) {
@@ -227,13 +226,22 @@ constexpr auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
   return blob;
 }
 
-#define ENC_STRING( STRING )                                                                \
-  ( []() -> const char* {                                                                   \
-    constexpr uint32_t seed         = get_initial_seed< uint32_t >();                       \
-    constexpr auto     blob         = encrypt< char, uint32_t >( STRING, seed );            \
-    volatile uint32_t  runtime_seed = blob.seed;                                            \
-    static auto        result       = encrypt< char, uint32_t >( blob.data, runtime_seed ); \
-    return result.data;                                                                     \
+// can't return the string directly because its lifetime expires
+// could use `static` to get around this
+// but static links against `__cxa_guard_acquire` to ensure thread safety
+// however this is not compatible with shellcode `-nostdlib` option
+//
+// HACK: throught `volatile` we ensure we are being decrypted at runtime
+#define _ENC_STRING( STRING )                                                    \
+  ( [ & ] {                                                                      \
+    constexpr uint32_t seed         = get_initial_seed< uint32_t >();            \
+    constexpr auto     blob         = encrypt< char, uint32_t >( STRING, seed ); \
+    volatile uint32_t  runtime_seed = seed;                                      \
+    return encrypt< char, uint32_t >( blob.data, runtime_seed );                 \
   }() )
+
+#define ENC_STRING( var_name, string_literal )                      \
+  const auto  var_name##_encrypted = _ENC_STRING( string_literal ); \
+  const char* var_name             = var_name##_encrypted.data;
 
 #endif  // IMPERIUM_CRYPTO

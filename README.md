@@ -31,10 +31,10 @@ declfn void instance::start( _In_opt_ const args_t* args ) {
   IMPERIUM_INSTANCE
 
   //
-  // call LoadLibraryA to have the needed module is our peb
+  // call LoadLibraryA to have the needed module in our peb
   // wont be able to resolve their functions otherwise
   //
-  if ( ! win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), "user32.dll" ) ) {
+  if ( ! win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), ENC_STRING( "user32.dll" ) ) ) {
     return;
   }
 
