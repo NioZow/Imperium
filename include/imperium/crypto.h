@@ -231,7 +231,7 @@ consteval auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
   ( []() -> const char* {                                                                 \
     static constexpr uint32_t seed   = get_initial_seed< uint32_t >();                    \
     static constexpr auto     blob   = encrypt< char, uint32_t >( STRING, seed );         \
-    static constexpr auto     result = encrypt< char, uint32_t >( blob.data, blob.seed ); \
+    static auto               result = encrypt< char, uint32_t >( blob.data, blob.seed ); \
     return result.data;                                                                   \
   }() )
 
