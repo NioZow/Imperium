@@ -1,6 +1,7 @@
-#ifndef IMPERIUM_UTIL
-#define IMPERIUM_UTIL
+#ifndef IMPERIUM_UTIL_H
+#define IMPERIUM_UTIL_H
 
+#include <cstddef>
 #include <imperium/defs.h>
 
 namespace imperium::util::string {
@@ -12,7 +13,7 @@ namespace imperium::util::string {
    *	buffer to convert to uppercase
    */
   template< typename T >
-  inline VOID upper( IN OUT T str ) {
+  inline void upper( _Inout_ T str ) {
     do {
       if ( *str >= 'a' && *str <= 'z' ) {
         *str -= 0x20;
@@ -31,11 +32,9 @@ namespace imperium::util::string {
    *	size of the string
    */
   template< typename T >
-  inline VOID upper( IN OUT T str, IN ULONG size ) {
+  inline void upper( _Inout_ T str, _Inout_ size_t size ) {
     for ( int i = 0; i < size; i++ ) {
-      if ( str[ i ] >= 'a' && str[ i ] <= 'z' ) {
-        str[ i ] -= 0x20;
-      }
+      if ( str[ i ] >= 'a' && str[ i ] <= 'z' ) str[ i ] -= 0x20;
     }
   }
 
@@ -56,7 +55,7 @@ namespace imperium::util::string {
    *  true if the strings are the same otherwise false
    */
   template< typename T >
-  inline BOOL compare( IN T str1, IN T str2 ) {
+  inline bool compare( IN T str1, IN T str2 ) {
     do {
       if ( *str1 != *str2 ) return FALSE;
     } while ( *( ++str1 ) && *( ++str2 ) );
@@ -86,7 +85,7 @@ namespace imperium::util::string {
    *  true if the strings are the same otherwise false
    */
   template< typename T >
-  inline BOOL compare( IN T str1, IN T str2, IN ULONG len ) {
+  inline bool compare( IN T str1, IN T str2, IN ULONG len ) {
     int i = 0;
 
     do {
@@ -98,13 +97,7 @@ namespace imperium::util::string {
     return *str1 == *str2;
   }
 
-#pragma GCC push_options
-#pragma GCC optimize( "O0" )
   /*!
-   * the above disables optimisation otherwise it might call strlen
-   * resolving will fail and the program will crash
-   * thanks @C5pider for figuring this out so quickly
-   *
    * @brief
    *  get the length of a string
    *
@@ -118,8 +111,8 @@ namespace imperium::util::string {
    *  length of the string
    */
   template< typename T >
-  inline ULONG len( T str ) {
-    int cnt = 0;
+  inline size_t len( T str ) {
+    size_t cnt = 0;
 
     do {
       cnt++;
@@ -127,7 +120,6 @@ namespace imperium::util::string {
 
     return cnt;
   }
-#pragma GCC pop_options
 }  // namespace imperium::util::string
 
-#endif
+#endif  // IMPERIUM_UTIL_H

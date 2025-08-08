@@ -1,6 +1,7 @@
-#ifndef IMPERIUM_IO
-#define IMPERIUM_IO
+#ifndef IMPERIUM_IO_H
+#define IMPERIUM_IO_H
 
+#include <cstdint>
 #include <windows.h>
 
 namespace imperium::io {
@@ -17,6 +18,8 @@ namespace imperium::io {
    *  printf parameters
    */
   void printf( _In_ const char* fmt, ... );
+  void print_bytes( uint8_t* data, size_t size );
+  void print_hex( uint8_t* data, size_t size );
 }  // namespace imperium::io
 
-#endif  // IMPERIUM_IO
+#endif  // IMPERIUM_IO_H

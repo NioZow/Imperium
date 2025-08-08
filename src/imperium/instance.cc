@@ -1,12 +1,11 @@
 #include <cstdint>
 #include <imperium/crypto.h>
 #include <imperium/defs.h>
-#include <imperium/instance.h>
 #include <imperium/ldr.h>
 #include <imperium/macros.h>
 #include <imperium/mem.h>
 
-namespace imperium::instance {
+namespace imperium {
   /*!
    * @brief
    *  get a pointer to the instance by reading the peb
@@ -15,157 +14,123 @@ namespace imperium::instance {
    * @return
    *  pointer to the instance
    */
-  declfn PINSTANCE get() {
-    PINSTANCE Instance = { 0 };
-    uint32_t  Context  = { 0 };
+  declfn instance_t* instance_t::find() {
+    instance_t* instance = { 0 };
 
     for ( uint32_t i = 0; i < NtCurrentPeb()->NumberOfHeaps; i++ ) {
-      Context = ( ( PINSTANCE ) ( NtCurrentPeb()->ProcessHeaps[ i ] ) )->Context;
-
-      if ( Context == 0xc0debabe ) {
-        Instance = static_cast< PINSTANCE >( NtCurrentPeb()->ProcessHeaps[ i ] );
-        break;
-      }
+      instance = static_cast< instance_t* >( NtCurrentPeb()->ProcessHeaps[ i ] );
+      if ( instance->context == 0xc0debabe ) break;
     }
 
-    return Instance;
+    return instance;
   }
 
   /*!
    * @brief
-   *  function to start the program from assembly
-   *  the entry for your payload should rather be the Main functin
-   *  as this one is called by that func
-   *
-   * @param Param
-   *  parameters
+   *  init the imperium instance
+   *  you should init the instance and then start it.
    */
-  declfn PINSTANCE init() {
-    PINSTANCE Instance = { 0 };
-    PPVOID    MmAddr   = { 0 };
-    PPEB      Peb      = NtCurrentPeb();
+  declfn instance_t* instance_t::init() {
+    instance_t**      instance   = { 0 };
+    void*             ntdll      = { 0 };
+    fnRtlAllocateHeap heap_alloc = { 0 };
+    PPEB              peb        = NtCurrentPeb();
 
     //
     // check if there are enough heaps to hold our instance
     //
-    if ( Peb->NumberOfHeaps >= Peb->MaximumNumberOfHeaps ) {
-      return nullptr;
-    }
+    if ( peb->NumberOfHeaps >= peb->MaximumNumberOfHeaps ) return nullptr;
 
     //
     // get the address of last heap to use to store a pointer to our instance
     //
-    MmAddr = &Peb->ProcessHeaps[ Peb->NumberOfHeaps++ ];
+    instance = reinterpret_cast< instance_t** >( &peb->ProcessHeaps[ peb->NumberOfHeaps++ ] );
 
     //
     // allocate memory for the instance
+    // because of recursive issues it has to be allocated manually
+    // can't use anything that ends up calling win32::call with is not ready
+    // yet to be called
     //
-    if ( ! ( *MmAddr = mem::alloc( sizeof( INSTANCE ) ) ) ) {
+    if ( ! ( ntdll = ldr::module( H_STR( "ntdll.dll" ) ) ) ) return nullptr;
+    if ( ! ( heap_alloc =
+                 reinterpret_cast< fnRtlAllocateHeap >( ldr::function( ntdll, H_STR( "RtlAllocateHeap" ) ) ) ) )
       return nullptr;
-    }
+
+    if ( ! ( *instance =
+                 static_cast< instance_t* >( heap_alloc( NtCurrentHeap(), HEAP_ZERO_MEMORY, sizeof( instance_t ) ) ) ) )
+      return nullptr;
+
+    //
+    // cache RtlAllocateHeap address
+    //
+    ( *instance )->cached_modules.name            = H_STR( "ntdll.dll" );
+    ( *instance )->cached_modules.address         = ntdll;
+    ( *instance )->cached_modules.cached_function = static_cast< cached_function_t* >(
+        heap_alloc( NtCurrentHeap(), HEAP_ZERO_MEMORY, sizeof( cached_function_t ) ) );
+    ( *instance )->cached_modules.cached_function->address = reinterpret_cast< void* >( heap_alloc );
+    ( *instance )->cached_modules.cached_function->name    = H_STR( "RtlAllocateHeap" );
 
     //
     // set a context to find the instance struct in memory
     //
-    Instance          = static_cast< PINSTANCE >( *MmAddr );
-    Instance->Context = 0xc0debabe;
+    ( *instance )->context = 0xc0debabe;
 
     //
     // get the base address of the current implant in memory and the end.
     // subtract the implant end address with the start address you will
     // get the size of the implant in memory
     //
-    Instance->Base.Buffer = StRipStart();
-    Instance->Base.Length = U_PTR( StRipEnd() ) - U_PTR( Instance->Base.Buffer );
-    return Instance;
+    ( *instance )->base.data = StRipStart();
+    ( *instance )->base.len =
+        reinterpret_cast< uint64_t >( StRipEnd() ) - reinterpret_cast< uint64_t >( ( *instance )->base.data );
+    return ( *instance );
   }
 
-  namespace symbol {
-    /*!
-     * @brief
-     *  get a pointer to a function info if it is already stored in memory
-     *
-     * @return
-     *  function address struct
-     */
-    declfn PSYMBOL get( PSYMBOL_HASH FuncHash ) {
-      IMPERIUM_INSTANCE
+  /*
+   * @brief
+   *  free up buffers and clean instance related stuff
+   *  this function automatically gets called when you quit
+   */
+  declfn void instance_t::clean() {
+    cached_module_t*   next_module     = &this->cached_modules;
+    cached_function_t* next_function   = { 0 };
+    cached_module_t*   cached_module   = { 0 };
+    cached_function_t* cached_function = { 0 };
+    fnRtlFreeHeap      heap_free =
+        reinterpret_cast< fnRtlFreeHeap >( win32_t::resolve( H_FUNC( "ntdll!RtlFreeHeap" ) ).function_address );
 
-      PSYMBOL FuncAddr = Instance()->Symbol;
-
+    //
+    // loop over all the cached modules
+    // to free them
+    //
+    while ( ( cached_module = next_module ) ) {
       //
-      // if there is no function loaded quit now
+      // loop over all cached functions
       //
-      if ( ! Instance()->Symbol ) {
-        return NULL;
+      next_function = cached_module->cached_function;
+      while ( ( cached_function = next_function ) ) {
+        //
+        // free the function
+        //
+        next_function = cached_function->next;
+        mem::zero( cached_function );
+        heap_free( NtCurrentHeap(), 0, cached_function );
       }
 
       //
-      // iterate through all loaded functions
+      // all functions from that module were freed
+      // now free the module
       //
-      do {
-        //
-        // search if a function has the same hashes and so is the same
-        //
-        if ( FuncAddr->FunctionHash == FuncHash->Function && FuncAddr->ModuleHash == FuncHash->Module ) {
-          break;
-        }
-      } while ( ( FuncAddr = FuncAddr->Next ) );
-
-      return FuncAddr;
+      next_module = cached_module->next;
+      mem::zero( cached_module );
+      if ( cached_module != &this->cached_modules ) heap_free( NtCurrentHeap(), 0, cached_module );
     }
 
-    /*!
-     * @brief
-     *  store the function to load only once
-     *
-     * @param SymHash
-     *  hashes of the func
-     *
-     * @param SymAddr
-     *  addr of the module/function
-     *
-     * @param Ssn
-     *  ssn of the syscall
-     */
-    declfn PSYMBOL add( SYMBOL_HASH SymHash, PVOID SymAddr, USHORT Ssn = 0 ) {
-      IMPERIUM_INSTANCE
-
-      PSYMBOL*          Sym    = &Instance()->Symbol;
-      PVOID             Module = { 0 };
-      fnRtlAllocateHeap Func   = { 0 };
-
-      //
-      // get the address of the last symbol
-      //
-      while ( *Sym && ( Sym = &( *Sym )->Next ) );
-
-      //
-      // allocate the mem manually
-      // cant call mem:alloc cuz it calls win32::call
-      // creates a recursive infinite loop
-      // todo: find a better way to do this?
-      // does not fix anything still does not work
-      //
-      if ( ! ( Module = ldr::module( H_STR( "ntdll.dll" ) ) ) ) {
-        return nullptr;
-      }
-
-      if ( ! ( Func = reinterpret_cast< fnRtlAllocateHeap >( ldr::function( Module, H_STR( "RtlAllocateHeap" ) ) ) ) ) {
-        return nullptr;
-      }
-
-      *Sym = static_cast< PSYMBOL >( Func( NtCurrentHeap(), HEAP_ZERO_MEMORY, sizeof( SYMBOL ) ) );
-
-      //
-      // set the symbol
-      //
-      ( *Sym )->FunctionHash = SymHash.Function;
-      ( *Sym )->ModuleHash   = SymHash.Module;
-      ( *Sym )->Address      = SymAddr;
-      ( *Sym )->Syscall.Ssn  = Ssn;
-
-      return *Sym;
-    }
-  }  // namespace symbol
-}  // namespace imperium::instance
+    //
+    // release the instance from its chains
+    //
+    mem::zero( this );
+    heap_free( NtCurrentHeap(), 0, this );
+  }
+}  // namespace imperium

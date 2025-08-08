@@ -1,12 +1,10 @@
-#ifndef IMPERIUM_MACROS
-#define IMPERIUM_MACROS
+#ifndef IMPERIUM_MACROS_H
+#define IMPERIUM_MACROS_H
 
-#include <cstdint>
-#include <imperium/instance.h>
+#include <imperium/crypto.h>
+#include <imperium/defs.h>
 #include <imperium/io.h>
-
-#define IMPERIUM_INSTANCE PINSTANCE __LocalInstance = imperium::instance::get();
-#define Instance()        ( ( PINSTANCE ) ( __LocalInstance ) )
+#include <imperium/win32.h>
 
 #ifdef IMPERIUM_PIC
   #define declfn __attribute__( ( section( ".text$B" ) ) )
@@ -21,91 +19,84 @@ extern "C" void* StRipEnd();
 //
 // pseudo handles
 //
-#define NtCurrentProcess()              ( ( HANDLE ) ( uint64_t ) ( -1 ) )
-#define NtCurrentThread()               ( ( HANDLE ) ( uint64_t ) ( -2 ) )
-#define NtCurrentProcessToken()         ( ( HANDLE ) ( uint64_t ) ( -4 ) )
-#define NtCurrentThreadToken()          ( ( HANDLE ) ( uint64_t ) ( -5 ) )
-#define NtCurrentThreadEffectiveToken() ( ( HANDLE ) ( uint64_t ) ( -6 ) )
+#define NtCurrentProcessToken()         reinterpret_cast< void* >( static_cast< uint64_t >( -4 ) )
+#define NtCurrentThreadToken()          reinterpret_cast< void* >( static_cast< uint64_t >( -5 ) )
+#define NtCurrentThreadEffectiveToken() reinterpret_cast< void* >( static_cast< uint64_t >( -6 ) )
 
 //
 // peb/teb related macros
 //
-#define NtLastError()               ( NtCurrentTeb()->LastErrorValue )
-#define NtLastStatus()              ( NtCurrentTeb()->LastStatusValue )
-#define NtCurrentHeap()             ( ( void* ) NtCurrentPeb()->ProcessHeap )
-#define NtProcessHeap()             NtCurrentHeap()
-#define ZwCurrentProcess()          NtCurrentProcess()
-#define ZwCurrentThread()           NtCurrentThread()
-#define NtProcessImage()            ( wchart_t* ) NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer
-#define NtProcessCurrentDirectory() ( wchart_t* ) NtCurrentPeb()->ProcessParameters->CurrentDirectory.DosPath
+#define NtCurrentHeap()    static_cast< void* >( NtCurrentPeb()->ProcessHeap )
+#define NtProcessHeap()    NtCurrentHeap()
+#define ZwCurrentProcess() NtCurrentProcess()
+#define ZwCurrentThread()  NtCurrentThread()
+#define NtProcessImage()   static_cast< wchar_t* >( NtCurrentPeb()->ProcessParameters->ImagePathName.Buffer )
+#define NtProcessCurrentDirectory() \
+  static_cast< wchar_t* >( NtCurrentPeb()->ProcessParameters->CurrentDirectory.DosPath )
 
 #if _WIN64
-  #define NtCurrentProcessId() ( ( uint32_t ) ( __readgsdword( 0x40 ) ) )
+  #define NtCurrentProcessId() reinterpret_cast< uint32_t >( __readgsdword( 0x40 ) )
 #elif _WIN32
-  #define NtCurrentProcessId() ( ( uint32_t ) ( __readfsdword( 0x20 ) ) )
+  #define NtCurrentProcessId() reinterpret_cast< uint32_t >( __readgsdword( 0x20 ) )
 #endif
 
 #if _WIN64
-  #define NtCurrentThreadId() ( ( uint32_t ) ( __readgsdword( 0x48 ) ) )
+  #define NtCurrentThreadId() reinterpret_cast< uint32_t >( __readgsdword( 0x48 ) )
 #elif _WIN32
-  #define NtCurrentThreadId() ( ( uint32_t ) ( __readgsdword( 0x24 ) ) )
+  #define NtCurrentThreadId() reinterpret_cast< uint32_t >( __readgsdword( 0x24 ) )
 #endif
-
-//
-// casting macros
-//
-#define C_PTR( x )   ( ( PVOID ) ( x ) )
-#define C_BYTE( x )  ( ( PBYTE ) ( x ) )
-#define U_PTR( x )   ( ( UINT_PTR ) ( x ) )
-#define U_PTR32( x ) ( ( ULONG ) ( x ) )
-#define U_PTR64( x ) ( ( ULONG64 ) ( x ) )
-#define A_PTR( x )   ( ( PCHAR ) ( x ) )
-#define W_PTR( x )   ( ( PWCHAR ) ( x ) )
-
-//
-// dereference memory macros
-//
-#define C_DEF( x )   ( *( PVOID* ) ( x ) )
-#define C_DEF08( x ) ( *( UINT8* ) ( x ) )
-#define C_DEF16( x ) ( *( UINT16* ) ( x ) )
-#define C_DEF32( x ) ( *( UINT32* ) ( x ) )
-#define C_DEF64( x ) ( *( UINT64* ) ( x ) )
-
-//
-// NtStatus macros
-//
-#define NT_SUCCESS( NtStatus )     ( ( NTSTATUS ) ( NtStatus ) >= 0 )
-#define NT_INFORMATION( NtStatus ) ( ( NTSTATUS ) ( NtStatus ) >> 30 == 1 )
-#define NT_WARNING( NtStatus )     ( ( NTSTATUS ) ( NtStatus ) >> 30 == 2 )
-#define NT_ERROR( NtStatus )       ( ( NTSTATUS ) ( NtStatus ) >> 30 == 3 )
-
-//
-// status macros
-//
-#define SUCCESS( Status ) ( Status == 0 )
 
 //
 // io macros
 //
-#define PRINTF( text, ... )             imperium::io::printf( text, ##__VA_ARGS__ )
-#define PRINTF_INFO( text, ... )        PRINTF( "[*] " text "\n", ##__VA_ARGS__ )
-#define PRINTF_ERROR( text, ... )       PRINTF( "[!] " text "\n", ##__VA_ARGS__ )
-#define PRINT_NT_ERROR( ntapi, status ) PRINTF_ERROR( "%s failed with error: 0x%08X\n", ntapi, status )
-#define PRINT_WIN32_ERROR( win32api )   PRINTF_ERROR( "%s failed with error: %ld\n", win32api, NtLastError() )
+#define PRINTF( text, ... )       imperium::io::printf( text, ##__VA_ARGS__ );
+#define PRINTF_INFO( text, ... )  PRINTF( "[*] " text "\n", ##__VA_ARGS__ );
+#define PRINTF_ERROR( text, ... ) PRINTF( "[!] " text "\n", ##__VA_ARGS__ );
+#ifdef IMPERIUM_RELEASE
+  #define PRINTF_DBG( text, ... )
 
-#ifdef IMPERIUM_DEBUG
-  #define PRINTF_DEBUG( text, ... ) \
-    PRINTF( "[DEBUG::%s::%s::%d] " text "\n", __TIME__, __FUNCTION__, __LINE__, ##__VA_ARGS__ )
+  #define PRINT_WIN32_ERROR( winapi )                                    \
+    {                                                                    \
+      ENC_STRING( error, winapi );                                       \
+      PRINTF_ERROR( "%s failed with error: %ld", error, NtLastError() ); \
+    }
+
+  #define PRINT_NT_ERROR( ntapi, status )                         \
+    {                                                             \
+      ENC_STRING( error, ntapi );                                 \
+      PRINTF_ERROR( "%s failed with error: %ld", error, status ); \
+    }
 #else
-  #define PRINTF_DEBUG( text, ... )
+  #define PRINTF_DBG( text, ... ) \
+    imperium::io::printf( "[DEBUG::%s::%s::%d] " text, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__ );
+
+  #define PRINT_WIN32_ERROR( win32api )                                                       \
+    {                                                                                         \
+      char* message = imperium::win32::lookup_win32_error( NtLastError() );                   \
+      if ( message ) {                                                                        \
+        PRINTF_ERROR( "%s failed with error: %s (%ld)\n", win32api, message, NtLastError() ); \
+        imperium::win32::call< fnLocalFree >( H_FUNC( "kernel32!LocalFree" ), message );      \
+      } else                                                                                  \
+        PRINTF_ERROR( "%s failed with error: %ld\n", win32api, NtLastError() );               \
+    }
+
+  #define PRINT_NT_ERROR( ntapi, status )                                                \
+    {                                                                                    \
+      char* message = imperium::win32::lookup_nt_error( status );                        \
+      if ( message ) {                                                                   \
+        PRINTF_ERROR( "%s failed with error: %s (0x%08X)\n", ntapi, message, status );   \
+        imperium::win32::call< fnLocalFree >( H_FUNC( "kernel32!LocalFree" ), message ); \
+      } else                                                                             \
+        PRINTF_ERROR( "%s failed with error: %ld\n", ntapi, NtLastError() );             \
+    }
 #endif
 
 //
 // string
 //
 #define INIT_ANSI_STRING( str ) \
-  { .Length = sizeof( str ) - sizeof( CHAR ), .MaximumLength = sizeof( str ), .Buffer = str }
+  { .Length = sizeof( str ) - sizeof( char ), .MaximumLength = sizeof( str ), .Buffer = ( PSTR ) str }
 #define INIT_UNICODE_STRING( wstr ) \
-  { .Length = sizeof( wstr ) - sizeof( WCHAR ), .MaximumLength = sizeof( wstr ), .Buffer = wstr }
+  { .Length = sizeof( wstr ) - sizeof( wchar_t ), .MaximumLength = sizeof( wstr ), .Buffer = ( PWSTR ) wstr }
 
-#endif  // IMPERIUM_MACROS
+#endif  // IMPERIUM_MACROS_H

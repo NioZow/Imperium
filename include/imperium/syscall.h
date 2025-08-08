@@ -1,153 +1,118 @@
-#ifndef IMPERIUM_SYSCALL
-#define IMPERIUM_SYSCALL
+#ifndef IMPERIUM_SYSCALL_H
+#define IMPERIUM_SYSCALL_H
 
 #include <imperium/defs.h>
 #include <imperium/macros.h>
 #include <imperium/win32.h>
 #include <utility>
 
-/*!
- * @brief
- *  perform indirect syscall
- *
- * @param ...
- *  parameters of the syscall
- *
- * @return
- *  return status of the syscall
- */
-extern "C" NTSTATUS SyscallIndirect( IN OUT OPTIONAL...  // args
-);
-
-/*!
- * @brief
- *  perform direct syscall
- *
- * @param ...
- *  parameters of the syscall
- *
- * @return
- *  return status of the syscall
- */
-extern "C" NTSTATUS Direct( IN OUT OPTIONAL...  // args
-);
-
-
-namespace imperium::syscall {
-  /*!
-   * @brief
-   *  resolve syscall information (SSN, address...)
-   *
-   * @param SyscallHash
-   *  hash of the syscall
-   *
-   * @param Syscall
-   *  struct that will receive the address and ssn of the syscall
-   *
-   * @return
-   *  pointer to a data structure containing information about the syscall
-   */
-  NTSTATUS resolve( _In_ SYMBOL_HASH SyscallHash, _In_ PSYSCALL Syscall );
-
-  /*!
-   * @brief
-   *  call a nt function
-   *  just forward the call to win32::call
-   *
-   * @tparam Func
-   *  type of the function
-   *
-   * @tparam Args
-   *  arguments to be passed to the function
-   *  only the right number of arguments will be accepted
-   *
-   * @param FuncHash
-   *  the hash of the dll and the hash of the func's name
-   *
-   * @param args
-   *  args to pass to the function
-   *
-   * @return
-   *  return value of syscall
-   */
-  template< typename Func, class... Args >
-  inline NTSTATUS call( SYMBOL_HASH FuncHash, Args... args ) {
-    return win32::call< Func >( FuncHash, args... );
-  }
+namespace imperium {
+  struct syscall_t;
 
   /*!
    * @brief
    *  perform indirect syscall
    *
-   * @tparam Func
-   *  type of the function
-   *
-   * @tparam Args
-   *  arguments to be passed to the function
-   *  only the right number of arguments will be accepted
-   *
-   * @param SymHash
-   *  the hash of the dll and the hash of the func's name
-   *
-   * @param args
-   *  args to pass to the function
+   * @param ...
+   *  parameters of the syscall
    *
    * @return
-   *  return value of syscall
+   *  return status of the syscall
    */
-  template< typename Func, class... Args >
-  inline NTSTATUS indirect( SYMBOL_HASH SymHash, Args... args ) {
-    //
-    // resolve the syscall
-    //
-    if ( ! win32::resolve( SymHash, SymbolSyscall | SyscallAddInstance ) ) {
-      PRINTF_ERROR( "Failed to resolve symbol with module 0x%08X and function 0x%08X", SymHash.Module,
-          SymHash.Function );
-      return STATUS_INTERNAL_ERROR;
-    }
-
-    //
-    // perform indirect syscall
-    //
-    return SyscallIndirect( std::forward< Args >( args )... );
-  }
+  extern "C" void SyscallConfig( syscall_t* syscall );
 
   /*!
    * @brief
    *  perform direct syscall
    *
-   * @tparam Func
-   *  type of the function
-   *
-   * @tparam Args
-   *  arguments to be passed to the function
-   *  only the right number of arguments will be accepted
-   *
-   * @param SymHash
-   *  the hash of the dll and the hash of the func's name
-   *
-   * @param args
-   *  args to pass to the function
+   * @param ...
+   *  parameters of the syscall
    *
    * @return
-   *  return value of syscall
+   *  return status of the syscall
    */
-  template< typename Func, class... Args >
-  inline NTSTATUS direct( SYMBOL_HASH SymHash, Args... args ) {
+  extern "C" NTSTATUS SyscallInvoke( _Inout_opt_...  // args
+  );
+
+  struct syscall_t {
+    void* address;
+
     //
-    // resolve the syscall
+    // a ssn can only be 32 bits and is usually is 16 bits
+    // however setting to 64 bits to avoid problems because this is
+    // directly written into `rax` in assembly.
+    // This would probably have been padded to 16 bytes anyway but
+    // I prefer handling this myself.
     //
-    if ( ! win32::resolve( SymHash, SymbolSyscall | SyscallAddInstance ) ) {
-      PRINTF_ERROR( "Failed to resolve symbol with module 0x%08X and function 0x%08X", SymHash.Module,
-          SymHash.Function );
-      return STATUS_INTERNAL_ERROR;
+    uint64_t ssn;
+
+    /*!
+     * @brief
+     *  resolve syscall information (SSN, address...)
+     *
+     * @param SyscallHash
+     *  hash of the syscall
+     *
+     * @param Syscall
+     *  struct that will receive the address and ssn of the syscall
+     *
+     * @return
+     *  data structure containing information about the syscall
+     *  PERF: this structure is more than 8 bytes so it can't fit
+     *  in a single register.
+     *  Have to look how it is stored and if the perfs are good.
+     */
+    static syscall_t resolve( _In_ symbol_t symbol );
+
+    /*!
+     * @brief
+     *  perform indirect syscall
+     *
+     * @tparam Func
+     *  type of the syscall
+     *  FIXME: type is not linked to args and not enforced
+     *
+     * @tparam Args
+     *  args to pass to the syscall
+     *
+     * @param args
+     *  args to pass to the syscall
+     *
+     * @return
+     *  syscall return value
+     */
+    template< typename Func, class... Args >
+    inline NTSTATUS exec( Args... args ) {
+      if ( ! address || ! ssn ) __debugbreak();
+
+      //
+      // perform indirect syscall
+      //
+      SyscallConfig( this );
+      return SyscallInvoke( std::forward< Args >( args )... );
     }
+  };
 
-    //
-    // perform direct syscall
-    //
-    return SyscallDirect( std::forward< Args >( args )... );
-  }
-}  // namespace imperium::syscall
+  namespace syscall {
+    /*
+     * @brief
+     *  resolve a syscall and execute it indirectly
+     *
+     * @tparam Func
+     *  type of the syscall
+     *
+     * @tparam Args
+     *  args to pass to the syscall
+     *
+     * @return
+     *  syscall return value
+     */
+    template< typename Func, class... Args >
+    inline NTSTATUS indirect( symbol_t symbol, Args... args ) {
+      return syscall_t::resolve( symbol ).exec< Func >( std::forward< Args >( args )... );
+    }
+  }  // namespace syscall
+}  // namespace imperium
 
-#endif  // IMPERIUM_SYSCALL
+
+#endif  // IMPERIUM_SYSCALL_H

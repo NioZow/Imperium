@@ -28,20 +28,10 @@
       {
         devShells.default = pkgs.mkShell {
           inherit buildInputs;
+          name = "imperium";
+
           shellHook = ''
-            echo "Imperium cross-compilation environment"
-            echo "======================================"
-            echo ""
-            echo "Available commands:"
-            echo "  make pic       - Build x64 shellcode"
-            echo "  make dll       - Build x64 dll"
-            echo "  make exe       - Build x64 exe"
-            echo "  make ldr       - Build x64 shellcode loader"
-            echo "  make clean     - Clean binaries"
-            echo "  compiledb make - Generate LSP definitions"
-            echo ""
-            
-            echo "Environment ready!"
+            export name="imperium"
           '';
         };
       }

@@ -6,5 +6,9 @@ bin/obj/*.o
 bin/*.bin
 cmake-build-debug
 build/
+.direnv/
 .cache/
 compile_commands.json
+__pycache__/
+config.json
+

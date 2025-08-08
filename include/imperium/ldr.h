@@ -1,5 +1,5 @@
-#ifndef IMPERIUM_LDR
-#define IMPERIUM_LDR
+#ifndef IMPERIUM_LDR_H
+#define IMPERIUM_LDR_H
 
 #include <cstdint>
 #include <windows.h>
@@ -37,4 +37,4 @@ namespace imperium::ldr {
   void* function( _In_ void* Library, _In_ uint32_t Function );
 }  // namespace imperium::ldr
 
-#endif  // IMPERIUM_LDR
+#endif  // IMPERIUM_LDR_H

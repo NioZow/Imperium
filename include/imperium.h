@@ -4,7 +4,6 @@
 // imperium individual headers
 #include <imperium/crypto.h>
 #include <imperium/defs.h>
-#include <imperium/instance.h>
 #include <imperium/io.h>
 #include <imperium/ldr.h>
 #include <imperium/macros.h>

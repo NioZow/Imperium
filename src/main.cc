@@ -14,9 +14,9 @@ using namespace imperium;
  *  WARNING: this is optional and may be `nullptr`
  *
  *  NOTE:
- * - By default, the DLL entrypoint does not pass arguments.
- * - By default, the shellcode entrypoint pass its first argument
- * - By default, the exe entrypoint passes wrapped argc and argv
+ * - By default, the dll entrypoint passes its first argument.
+ * - By default, the pic entrypoint passes its first argument.
+ * - By default, the exe entrypoint passes wrapped argc and argv.
  *
  *  WARNING: for shellcode, arguments are get through the pointer that you can pass using `NtCreateThread` as argument
  *  the user calling `NtCreateThread` is responsible for ensuring the right format of the arguments.
@@ -24,9 +24,7 @@ using namespace imperium;
  *  If the passed pointer points to memory you are not allowed to access and you redeference it, the program will
  *  probably crash.
  */
-declfn void instance::start( _In_opt_ const args_t* args ) {
-  IMPERIUM_INSTANCE
-
+declfn void instance_t::start( _In_opt_ const args_t* args ) {
   ENC_STRING( user32, "user32.dll" );
   ENC_STRING( hack, "HackThePlanet" );
 
@@ -38,6 +36,6 @@ declfn void instance::start( _In_opt_ const args_t* args ) {
     return;
   }
 
-  win32::call< fnMessageBoxA >( H_FUNC( "user32!MessageBoxA" ), nullptr, hack,
-      args && args->length > 0 ? args->arguments[ 0 ] : "Imperium", MB_OK );
+  win32_t::resolve( H_FUNC( "user32!MessageBoxA" ) )
+      .exec< fnMessageBoxA >( nullptr, hack, args && args->length > 0 ? args->arguments[ 0 ] : "Imperium", MB_OK );
 }

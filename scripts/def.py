@@ -39,19 +39,19 @@ def parse_msdoc(url: str) -> None:
     # rewrite the SAL
     # performance are terrible, i know
     for i in range(len(function)):
-        function[i] = function[i].replace("[in] ", "IN ")
-        function[i] = function[i].replace("[out] ", "OUT ")
-        function[i] = function[i].replace("[in, out] ", "IN OUT ")
-        function[i] = function[i].replace("[in, optional] ", "IN OPTIONAL ")
-        function[i] = function[i].replace("[out, optional] ", "OUT OPTIONAL ")
-        function[i] = function[i].replace("[in, out, optional] ", "IN OUT OPTIONAL ")
+        function[i] = function[i].replace("[in] ", "_In_ ")
+        function[i] = function[i].replace("[out] ", "_Out_ ")
+        function[i] = function[i].replace("[in, out] ", "_Inout_ ")
+        function[i] = function[i].replace("[in, optional] ", "_In_opt_ ")
+        function[i] = function[i].replace("[out, optional] ", "_Out_opt_ ")
+        function[i] = function[i].replace("[in, out, optional] ", "_Inout_opt_ ")
 
     # rewrite as a type
-    func_name = function[0].split(" ")[1][:-1]
-    func_type = function[0].split(" ")[0]
+    func_name = function[0].split(" ")[-1][:-1]
+    func_type = function[0].split(" ")[-2]
     function[0] = f"typedef {func_type} (WINAPI*fn{func_name})("
 
-    print(f"DLL: {get_dll_msdoc(content)}")
+    # print(f"DLL: {get_dll_msdoc(content)}")
     print("\n".join(function))
 
 
@@ -84,4 +84,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

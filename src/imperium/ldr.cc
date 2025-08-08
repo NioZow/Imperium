@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <cstdint>
 #include <imperium/crypto.h>
 #include <imperium/defs.h>
@@ -15,24 +16,21 @@ namespace imperium::ldr {
    *  hash of the module to get
    *
    * @return
-   *  address of the DLL base ( NULL if not found )
+   *  address of the DLL base
    */
-  declfn void* module( _In_ uint32_t Hash ) {
-    PLDR_DATA_TABLE_ENTRY Data  = { 0 };
-    PLIST_ENTRY           Head  = { 0 };
-    PLIST_ENTRY           Entry = { 0 };
+  declfn void* module( _In_ uint32_t hash ) {
+    PLDR_DATA_TABLE_ENTRY data  = { 0 };
+    PLIST_ENTRY           head  = { 0 };
+    PLIST_ENTRY           entry = { 0 };
 
-    Head  = &NtCurrentPeb()->Ldr->InLoadOrderModuleList;
-    Entry = Head->Flink;
+    head  = &NtCurrentPeb()->Ldr->InLoadOrderModuleList;
+    entry = head->Flink;
 
-    for ( ; Head != Entry; Entry = Entry->Flink ) {
-      Data = reinterpret_cast< PLDR_DATA_TABLE_ENTRY >( Entry );
+    for ( ; head != entry; entry = entry->Flink ) {
+      data = reinterpret_cast< PLDR_DATA_TABLE_ENTRY >( entry );
 
-      //
-      // FIXME: use length instead of null byte
-      //
-      if ( crypto::dbj2( Data->BaseDllName.Buffer, static_cast< uint32_t >( -1 ), true ) == Hash ) {
-        return Data->DllBase;
+      if ( crypto::dbj2( data->BaseDllName.Buffer, data->BaseDllName.Length / 2, true ) == hash ) {
+        return data->DllBase;
       }
     }
 
@@ -48,80 +46,83 @@ namespace imperium::ldr {
    * @param Module
    *  base address of the DLL
    *
-   * @param FunctionHash
+   * @param Function
    *  hash of the function to get the address of
    *
    * @return
-   *  address of the function ( NULL if not found )
+   *  address of the function
    */
-  declfn void* function( _In_ void* Library, _In_ uint32_t Function ) {
-    void*                   Address    = { 0 };
-    PIMAGE_NT_HEADERS       NtHeader   = { 0 };
-    PIMAGE_DOS_HEADER       DosHeader  = { 0 };
-    PIMAGE_EXPORT_DIRECTORY ExpDir     = { 0 };
-    SIZE_T                  ExpDirSize = { 0 };
-    uint32_t*               AddrNames  = { 0 };
-    uint32_t*               AddrFuncs  = { 0 };
-    uint16_t*               AddrOrdns  = { 0 };
-    char*                   FuncName   = { 0 };
+  declfn void* function( _In_ void* library, _In_ uint32_t function ) {
+    void*                                   address    = { 0 };
+    PIMAGE_NT_HEADERS                       nt_headers = { 0 };
+    PIMAGE_DOS_HEADER                       dos_header = { 0 };
+    buf_t< IMAGE_EXPORT_DIRECTORY, size_t > export_dir = { 0 };
+    uint32_t*                               names      = { 0 };
+    uint32_t*                               funcs      = { 0 };
+    uint16_t*                               ordinals   = { 0 };
+    char*                                   func_name  = { 0 };
 
     //
     // sanity check arguments
     //
-    if ( ! Library || ! Function ) {
+    if ( ! library || ! function ) {
       return nullptr;
     }
 
     //
     // check headers are correct
     //
-    DosHeader = static_cast< PIMAGE_DOS_HEADER >( Library );
-    NtHeader  = reinterpret_cast< PIMAGE_NT_HEADERS >( U_PTR( Library ) + DosHeader->e_lfanew );
+    dos_header = static_cast< PIMAGE_DOS_HEADER >( library );
+    nt_headers =
+        reinterpret_cast< PIMAGE_NT_HEADERS >( reinterpret_cast< uint64_t >( library ) + dos_header->e_lfanew );
 
-    if ( DosHeader->e_magic != IMAGE_DOS_SIGNATURE || NtHeader->Signature != IMAGE_NT_SIGNATURE ) {
+    if ( dos_header->e_magic != IMAGE_DOS_SIGNATURE || nt_headers->Signature != IMAGE_NT_SIGNATURE ) {
       return nullptr;
     }
 
     //
     // parse the header export address table
     //
-    ExpDir = reinterpret_cast< PIMAGE_EXPORT_DIRECTORY >(
-        reinterpret_cast< ULONG_PTR >( Library ) +
-        NtHeader->OptionalHeader.DataDirectory[ IMAGE_DIRECTORY_ENTRY_EXPORT ].VirtualAddress );
-    ExpDirSize = NtHeader->OptionalHeader.DataDirectory[ IMAGE_DIRECTORY_ENTRY_EXPORT ].Size;
+    export_dir.data = reinterpret_cast< PIMAGE_EXPORT_DIRECTORY >(
+        reinterpret_cast< uint64_t >( library ) +
+        nt_headers->OptionalHeader.DataDirectory[ IMAGE_DIRECTORY_ENTRY_EXPORT ].VirtualAddress );
+    export_dir.len = nt_headers->OptionalHeader.DataDirectory[ IMAGE_DIRECTORY_ENTRY_EXPORT ].Size;
 
-    AddrNames = reinterpret_cast< uint32_t* >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfNames );
-    AddrFuncs = reinterpret_cast< uint32_t* >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfFunctions );
-    AddrOrdns =
-        reinterpret_cast< uint16_t* >( reinterpret_cast< ULONG_PTR >( Library ) + ExpDir->AddressOfNameOrdinals );
+    names = reinterpret_cast< uint32_t* >( reinterpret_cast< uint64_t >( library ) + export_dir.data->AddressOfNames );
+    funcs =
+        reinterpret_cast< uint32_t* >( reinterpret_cast< uint64_t >( library ) + export_dir.data->AddressOfFunctions );
+    ordinals = reinterpret_cast< uint16_t* >(
+        reinterpret_cast< uint64_t >( library ) + export_dir.data->AddressOfNameOrdinals );
 
     //
     // iterate over export address table director
     //
-    for ( uint32_t i = 0; i < ExpDir->NumberOfNames; i++ ) {
+    for ( uint32_t i = 0; i < export_dir.data->NumberOfNames; i++ ) {
       //
       // retrieve function name
       //
-      FuncName = reinterpret_cast< char* >( reinterpret_cast< uint64_t >( Library ) + AddrNames[ i ] );
+      func_name = reinterpret_cast< char* >( reinterpret_cast< uint64_t >( library ) + names[ i ] );
 
       //
       // hash function name from Iat and
       // check the function name is what we are searching for.
       // if not found keep searching.
       //
-      if ( crypto::dbj2( FuncName, static_cast< uint32_t >( -1 ), true ) != Function ) {
+      if ( crypto::dbj2( func_name, static_cast< uint32_t >( -1 ), true ) != function ) {
         continue;
       }
 
       //
       // resolve function pointer
       //
-      Address = C_PTR( U_PTR( Library ) + AddrFuncs[ AddrOrdns[ i ] ] );
+      address = reinterpret_cast< void* >( reinterpret_cast< uint64_t >( library ) + funcs[ ordinals[ i ] ] );
 
       //
       // check if function is a forwarded function
       //
-      if ( ( U_PTR( Address ) >= U_PTR( ExpDir ) ) && ( U_PTR( Address ) < U_PTR( ExpDir ) + ExpDirSize ) ) {
+      if ( ( reinterpret_cast< uint64_t >( address ) >= reinterpret_cast< uint64_t >( export_dir.data ) ) &&
+           ( reinterpret_cast< uint64_t >( address ) <
+               reinterpret_cast< uint64_t >( export_dir.data ) + export_dir.len ) ) {
         //
         // TODO: add support for forwarded functions
         //
@@ -131,6 +132,6 @@ namespace imperium::ldr {
       break;
     }
 
-    return Address;
+    return address;
   }
 }  // namespace imperium::ldr

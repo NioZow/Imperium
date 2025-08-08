@@ -1,7 +1,6 @@
-#ifndef IMPERIUM_CRYPTO
-#define IMPERIUM_CRYPTO
+#ifndef IMPERIUM_CRYPTO_H
+#define IMPERIUM_CRYPTO_H
 
-#include <concepts>
 #include <imperium/defs.h>
 #include <stdint.h>
 
@@ -33,34 +32,23 @@ namespace imperium::crypto {
    *  hash
    */
   template< typename T >
-  constexpr uint32_t dbj2( _In_ const T* buf, _In_ uint32_t len, _In_ bool to_upper = false ) {
-    uint32_t hash = { 0 };
+  constexpr uint32_t dbj2( const T* buf, uint32_t len, bool to_upper = false ) {
     T        tmp  = { 0 };
     uint32_t cnt  = { 0 };
+    uint32_t hash = SEED;
 
-    hash = SEED;
+    if ( ! buf ) return 0;
 
-    if ( ! buf ) {
-      return 0;
-    }
-
-    //
-    // FIXME: the loop stops because of the *(++buffer) instead of length
-    // and that causes problems when comparing strings with one having a defined length
-    // but not the other, as they have different hash
-    //
     do {
-      tmp = *buf;
+      tmp = *( buf++ );
 
       //
       // turn the character to uppercase
       //
-      if ( to_upper && tmp >= 'a' && tmp <= 'z' ) {
-        tmp -= 0x20;
-      }
+      if ( to_upper && tmp >= 'a' && tmp <= 'z' ) tmp -= 0x20;
 
       hash = ( ( hash << 5 ) + hash ) + tmp;
-    } while ( ++cnt < len && ( len != static_cast< uint32_t >( -1 ) || *( ++buf ) ) );
+    } while ( ++cnt < len && ( len != static_cast< uint32_t >( -1 ) || *buf ) );
 
     return hash;
   }
@@ -97,10 +85,10 @@ consteval uint32_t H_STR( _In_ T* str ) {
  * @return
  *  hash of the function & module
  */
-consteval SYMBOL_HASH H_FUNC( _In_ const char* Symbol ) {
+consteval symbol_t H_FUNC( _In_ const char* Symbol ) {
   const char* Func       = Symbol;
   char        Mod[ 100 ] = { 0 };
-  SYMBOL_HASH FuncHash   = { 0 };
+  symbol_t    FuncHash   = { 0 };
   uint32_t    Size       = { 0 };
   uint32_t    i          = { 0 };
 
@@ -132,8 +120,8 @@ consteval SYMBOL_HASH H_FUNC( _In_ const char* Symbol ) {
       //
       // calculate the hashes
       //
-      FuncHash.Function = H_STR( Func );
-      FuncHash.Module   = H_STR( Mod );
+      FuncHash.function = H_STR( Func );
+      FuncHash.module   = H_STR( Mod );
 
       break;
     }
@@ -244,4 +232,4 @@ constexpr auto encrypt( _In_ const T1 ( &buf )[ len ], _In_ T2 seed ) {
   const auto  var_name##_encrypted = _ENC_STRING( string_literal ); \
   const char* var_name             = var_name##_encrypted.data;
 
-#endif  // IMPERIUM_CRYPTO
+#endif  // IMPERIUM_CRYPTO_H

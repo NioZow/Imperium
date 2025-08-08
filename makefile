@@ -1,28 +1,37 @@
 MAKEFLAGS += "-s -j 16"
 
 ##
-## Project name
+## project name
 ##
-Project := imperium
+PROJECT := imperium
 
 ##
-## Compilers
+## compiler
 ##
 CXX := x86_64-w64-mingw32-g++
 
 ##
-## Compiler flags
+## compiler flags
 ##
-CFLAGS := -Os -fno-asynchronous-unwind-tables
-CFLAGS += -fno-ident -fpack-struct=8 -falign-functions=1
-CFLAGS += -s -ffunction-sections -falign-jumps=1 -w
-CFLAGS += -falign-labels=1 -fPIC
-CFLAGS += -fno-builtin
-CFLAGS += -Iinclude -masm=intel -fpermissive -mrdrnd -std=c++20
-CFLAGS += -fno-stack-protector -fno-exceptions -fno-rtti
+CFLAGS := -fno-asynchronous-unwind-tables                       # no stack unwinding
+CFLAGS += -fpack-struct=8                                       # struct alignment
+CFLAGS += -falign-functions=1 -falign-labels=1  -falign-jumps=1 # prevents aligning functions, jumps and labels
+CFLAGS += -ffunction-sections                                   # put each function in a different section, helps elimate dead code
+CFLAGS += -fPIC                                                 # position independant code
+CFLAGS += -fno-builtin                                          # no builtin function such as memset, memcpy, etc.
+CFLAGS += -fno-stack-protector                                  # disable stack canaries
+CFLAGS += -fno-exceptions                                       # disable c++ exception handling
+CFLAGS += -fno-rtti                                             # disable runtime type information
+CFLAGS += -mrdrnd                                               # enable RBRAND cpu instrcution
+CFLAGS += -Os                                                   # optimise for size, causes "redundant segment overrides" warnings but if not set shellcode does not work
+CFLAGS += -Iinclude -masm=intel -std=c++20                      # use C++ 20, intel assembly and set the `include` to the include path
+
+CFLAGS_RELEASE += -s                                            # strip all symbols (no function/variable names)
+CFLAGS_RELEASE += -fno-ident                                    # no .ident section (which contains a string for indentifying compiler and its version)
+CFLAGS_RELEASE += -DIMPERIUM_RELEASE
 
 ##
-## Source files
+## source files
 ##
 vpath %.cc src src/imperium src/imperium/entry
 vpath %.x64.asm src/imperium src/imperium/entry
@@ -36,7 +45,7 @@ ASM := $(wildcard src/*.x64.asm src/imperium/*.x64.asm)
 SRC_PIC     := $(SRC) src/imperium/entry/pic.cc
 ASM_PIC     := $(ASM) src/imperium/entry/entry.x64.asm
 OBJ_PIC     := $(addprefix bin/obj/,$(notdir $(SRC_PIC:.cc=.o))) $(addprefix bin/obj/,$(notdir $(ASM_PIC:.asm=.o))) 
-OUT_PIC     := bin/$(Project).x64.bin
+OUT_PIC     := bin/$(PROJECT).x64.bin
 CFLAGS_PIC  := $(CFLAGS) -DIMPERIUM_PIC
 LDFLAGS_PIC := -Wl,-Tscripts/Linker.ld -Wl,-s,--no-seh,--enable-stdcall-fixup -nostdlib -nodefaultlibs 
 
@@ -46,7 +55,7 @@ LDFLAGS_PIC := -Wl,-Tscripts/Linker.ld -Wl,-s,--no-seh,--enable-stdcall-fixup -n
 SRC_EXE     := $(SRC) src/imperium/entry/exe.cc
 ASM_EXE     := $(ASM)
 OBJ_EXE     := $(addprefix bin/obj/,$(notdir $(ASM_EXE:.asm=.o))) 
-OUT_EXE     := bin/$(Project).x64.exe
+OUT_EXE     := bin/$(PROJECT).x64.exe
 CFLAGS_EXE  := $(CFLAGS) -DIMPERIUM_EXE
 LDFLAGS_EXE :=
 
@@ -56,17 +65,32 @@ LDFLAGS_EXE :=
 SRC_DLL     := $(SRC) src/imperium/entry/dll.cc
 ASM_DLL     := $(ASM)
 OBJ_DLL     := $(addprefix bin/obj/,$(notdir $(ASM_DLL:.asm=.o))) 
-OUT_DLL     := bin/$(Project).x64.dll
+OUT_DLL     := bin/$(PROJECT).x64.dll
 CFLAGS_DLL  := $(CFLAGS) -DIMPERIUM_DLL
 LDFLAGS_DLL := -shared
 
 ##
-## main target
+## targets
 ##
-all: pic exe dll
+all: release
+debug: pic exe dll
+memleak: exe-memleak
+release: pic-release exe-release dll-release
+
+pic-release: CFLAGS_PIC += $(CFLAGS_RELEASE)
+pic-release: pic
+
+dll-release: CFLAGS_DLL += $(CFLAGS_RELEASE)  
+dll-release: dll
+
+exe-release: CFLAGS_EXE += $(CFLAGS_RELEASE) 
+exe-release: exe
+
+exe-memleak: CFLAGS_EXE += -DIMPERIUM_MEMLEAK
+exe-memleak: exe
 
 ##
-## Build stardust source into an
+## build stardust source into an
 ## executable and extract shellcode
 ##
 pic: $(OBJ_PIC)
@@ -98,7 +122,7 @@ bin/obj/%.o: %.asm
 	@ nasm -f win64 -o $@ $<
 
 ##
-## Clean object files and other binaries
+## clean object files and other binaries
 ##
 clean:
 	@ rm -rf bin/*.bin

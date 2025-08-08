@@ -1,10 +1,16 @@
-#include "imperium/macros.h"
-
+#include <cstdint>
 #include <imperium/crypto.h>
 #include <imperium/syscall.h>
 
-namespace imperium::syscall {
+namespace imperium {
   /*!
+   *  WARNING: This resolution technique will only work as long as those conditions are met :
+   *  - NtAccessCheck is the first system call
+   *  - Syscall stubs are 32 bytes
+   *  - Syscall are all stored in a row, sorted by SSN number
+   *  - Only works for syscalls located in ntdll, not those in win32u
+   *  - There is only one "fake" syscall : NtQuerySystemTime (that special case is handled)
+   *
    * @brief
    *  resolve syscall information (SSN, address...)
    *
@@ -17,51 +23,42 @@ namespace imperium::syscall {
    * @return
    *  pointer to a data structure containing information about the syscall
    */
-  declfn NTSTATUS resolve( _In_ SYMBOL_HASH SyscallHash, _Out_ PSYSCALL Syscall ) {
-    byte* SyscallAddr      = { 0 };
-    byte* FirstSyscallAddr = { 0 };
-    void* Ntdll            = { 0 };
+  declfn syscall_t syscall_t::resolve( _In_ symbol_t symbol ) {
+    instance_t* instance         = instance_t::find();
+    uint8_t*    syscall_addr     = { 0 };
+    byte*       FirstSyscallAddr = { 0 };
+    syscall_t   syscall          = { 0 };
 
     //
     // sanity check
     //
-    if ( ! Syscall || ! SyscallHash.Function || ! SyscallHash.Module ) {
-      return STATUS_INVALID_PARAMETER;
+    if ( ! symbol.function || ! symbol.module ) {
+      return syscall;
     }
 
     //
-    // check ntdll address
+    // get the first syscall address
+    // if not already resolved
     //
-    if ( ! ( Ntdll = ldr::module( SyscallHash.Module ) ) ) {
-      return STATUS_INTERNAL_ERROR;
+    if ( ! instance->first_syscall ) {
+      //
+      //
+      //
+      if ( ! ( instance->first_syscall =
+                   static_cast< uint8_t* >( win32_t::resolve( H_FUNC( "ntdll!NtAccessCheck" ) ).function_address ) ) )
+        return syscall;
     }
 
     //
-    // get the address of the first syscall and the one we want to resolve
+    // get the syscall address
     //
-    if ( ! ( SyscallAddr = static_cast< PBYTE >( ldr::function( Ntdll, SyscallHash.Function ) ) ) ||
-         ! ( FirstSyscallAddr = static_cast< PBYTE >( ldr::function( Ntdll, H_STR( "NtAccessCheck" ) ) ) ) ) {
-      return STATUS_INTERNAL_ERROR;
-    }
-
-    //
-    // make sure we got the address of the first syscall
-    // in case NtAccessCheck is no longer the first syscall
-    // might break because of NtQuerySystemTime
-    // look for the syscall & ret instruction
-    // as long as we find some it means we aren't at the first syscall
-    //
-    while ( *( FirstSyscallAddr - 0x0E ) == 0x0F && *( FirstSyscallAddr - 0x0D ) == 0x05 &&
-            *( FirstSyscallAddr - 0x0C ) == 0xC3 ) {
-      FirstSyscallAddr -= 32;
-    }
+    if ( ! ( syscall_addr = static_cast< uint8_t* >( win32_t::resolve( symbol ).function_address ) ) ) return syscall;
 
     //
     // calculate the SSN
-    // and add the address
     //
-    Syscall->Address = SyscallAddr;
-    Syscall->Ssn     = ( SyscallAddr - FirstSyscallAddr ) / 32;
+    syscall.address = syscall_addr;
+    syscall.ssn     = ( syscall_addr - instance->first_syscall ) / 32;
 
     //
     // handle the case of ntdll!NtQuerySystemTime
@@ -69,10 +66,7 @@ namespace imperium::syscall {
     // so its syscall stub is just a jmp instruction and is not 32 bytes
     // kinda of mess all offset from there
     //
-    if ( ( SyscallAddr - FirstSyscallAddr ) % 32 != 0 ) {
-      Syscall->Ssn++;
-    }
-
-    return STATUS_SUCCESS;
+    if ( ( syscall_addr - FirstSyscallAddr ) % 32 != 0 ) syscall.ssn++;
+    return syscall;
   }
-}  // namespace imperium::syscall
+}  // namespace imperium
