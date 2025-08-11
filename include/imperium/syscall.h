@@ -70,7 +70,6 @@ namespace imperium {
      *
      * @tparam Func
      *  type of the syscall
-     *  FIXME: type is not linked to args and not enforced
      *
      * @tparam Args
      *  args to pass to the syscall
@@ -82,14 +81,14 @@ namespace imperium {
      *  syscall return value
      */
     template< typename Func, class... Args >
-    inline NTSTATUS exec( Args... args ) {
+    inline auto exec( Args... args ) {
       if ( ! address || ! ssn ) __debugbreak();
 
       //
       // perform indirect syscall
       //
       SyscallConfig( this );
-      return SyscallInvoke( std::forward< Args >( args )... );
+      return reinterpret_cast< Func >( SyscallInvoke )( std::forward< Args >( args )... );
     }
   };
 
@@ -108,7 +107,7 @@ namespace imperium {
      *  syscall return value
      */
     template< typename Func, class... Args >
-    inline NTSTATUS indirect( symbol_t symbol, Args... args ) {
+    inline auto indirect( symbol_t symbol, Args... args ) {
       return syscall_t::resolve( symbol ).exec< Func >( std::forward< Args >( args )... );
     }
   }  // namespace syscall
