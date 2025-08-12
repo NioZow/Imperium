@@ -49,11 +49,12 @@ extern "C" void* StRipEnd();
 //
 // io macros
 //
-#define PRINTF( text, ... )       imperium::io::printf( text, ##__VA_ARGS__ );
-#define PRINTF_INFO( text, ... )  PRINTF( "[*] " text "\n", ##__VA_ARGS__ );
-#define PRINTF_ERROR( text, ... ) PRINTF( "[!] " text "\n", ##__VA_ARGS__ );
+#define PRINTF( text, ... ) imperium::io::printf( text, ##__VA_ARGS__ );
 #ifdef IMPERIUM_RELEASE
   #define PRINTF_DBG( text, ... )
+
+  #define PRINTF_INFO( text, ... )  PRINTF( "[*] " text "\n", ##__VA_ARGS__ );
+  #define PRINTF_ERROR( text, ... ) PRINTF( "[!] " text "\n", ##__VA_ARGS__ );
 
   #define PRINT_WIN32_ERROR( winapi )                                    \
     {                                                                    \
@@ -69,6 +70,9 @@ extern "C" void* StRipEnd();
 #else
   #define PRINTF_DBG( text, ... ) \
     imperium::io::printf( "[DEBUG::%s::%s::%d] " text, __FILE__, __FUNCTION__, __LINE__, ##__VA_ARGS__ );
+
+  #define PRINTF_INFO( text, ... )  PRINTF_DBG( "[*] " text "\n", ##__VA_ARGS__ );
+  #define PRINTF_ERROR( text, ... ) PRINTF_DBG( "[!] " text "\n", ##__VA_ARGS__ );
 
   #define PRINT_WIN32_ERROR( win32api )                                                       \
     {                                                                                         \

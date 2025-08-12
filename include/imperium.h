@@ -10,7 +10,7 @@
 #include <imperium/mem.h>
 #include <imperium/native.h>
 #include <imperium/syscall.h>
-#include <imperium/util.h>
+#include <imperium/utils.h>
 #include <imperium/win32.h>
 
 #endif  // IMPERIUM_H

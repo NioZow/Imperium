@@ -4,6 +4,8 @@
 #include <imperium/defs.h>
 #include <imperium/ldr.h>
 #include <imperium/macros.h>
+#include <imperium/mem.h>
+#include <imperium/utils.h>
 
 namespace imperium::ldr {
   /*!
@@ -53,7 +55,8 @@ namespace imperium::ldr {
    *  address of the function
    */
   declfn void* function( _In_ void* library, _In_ uint32_t function ) {
-    void*                                   address    = { 0 };
+    void*                                   func_addr  = { 0 };
+    void*                                   mod_addr   = { 0 };
     PIMAGE_NT_HEADERS                       nt_headers = { 0 };
     PIMAGE_DOS_HEADER                       dos_header = { 0 };
     buf_t< IMAGE_EXPORT_DIRECTORY, size_t > export_dir = { 0 };
@@ -61,6 +64,9 @@ namespace imperium::ldr {
     uint32_t*                               funcs      = { 0 };
     uint16_t*                               ordinals   = { 0 };
     char*                                   func_name  = { 0 };
+    buf_t< char >                           pattern    = { 0 };
+    buf_t< char >                           mod_name   = { 0 };
+    char                                    dot        = '.';
 
     //
     // sanity check arguments
@@ -108,30 +114,57 @@ namespace imperium::ldr {
       // check the function name is what we are searching for.
       // if not found keep searching.
       //
-      if ( crypto::dbj2( func_name, static_cast< uint32_t >( -1 ), true ) != function ) {
-        continue;
-      }
-
-      //
-      // resolve function pointer
-      //
-      address = reinterpret_cast< void* >( reinterpret_cast< uint64_t >( library ) + funcs[ ordinals[ i ] ] );
-
-      //
-      // check if function is a forwarded function
-      //
-      if ( ( reinterpret_cast< uint64_t >( address ) >= reinterpret_cast< uint64_t >( export_dir.data ) ) &&
-           ( reinterpret_cast< uint64_t >( address ) <
-               reinterpret_cast< uint64_t >( export_dir.data ) + export_dir.len ) ) {
+      if ( crypto::dbj2( func_name, static_cast< uint32_t >( -1 ), true ) == function ) {
         //
-        // TODO: add support for forwarded functions
+        // resolve function pointer
         //
-        __debugbreak();
-      }
+        func_addr = reinterpret_cast< void* >( reinterpret_cast< uint64_t >( library ) + funcs[ ordinals[ i ] ] );
 
-      break;
+        //
+        // check if function is a forwarded function
+        //
+        if ( ( reinterpret_cast< uint64_t >( func_addr ) >= reinterpret_cast< uint64_t >( export_dir.data ) ) &&
+             ( reinterpret_cast< uint64_t >( func_addr ) <
+                 reinterpret_cast< uint64_t >( export_dir.data ) + export_dir.len ) ) {
+          //
+          // copy the forwarded name
+          //
+          mod_name.len  = utils::string::len( static_cast< char* >( func_addr ) ) + 1;
+          mod_name.data = static_cast< char* >( mem::alloc( mod_name.sync_size_from_len() ) );
+          mem::copy( mod_name.data, static_cast< char* >( func_addr ), mod_name.len );
+
+          //
+          // find the dot that seperates the module name
+          // from the function name
+          //
+          pattern.data = &dot;
+          pattern.len  = 1;
+
+          func_name        = mem::search( &mod_name, &pattern );
+          *( func_name++ ) = 0;
+
+          //
+          // load the DLL
+          // WARNING: this is recursive
+          //
+          mod_addr = win32::call< fnLoadLibraryA >( H_FUNC( "kernel32!LoadLibraryA" ), mod_name.data );
+
+          //
+          // get the address of the function
+          // WARNING: this is recursive
+          // FIXME: this breaks PIC (even when there are no forwarded func to resolve)
+          // idk why so just setting a breakpoint for now
+          //
+
+          // func_addr = ldr::function( mod_addr, crypto::dbj2( func_name, -1, true ) );
+          mem::zfree( &mod_name );
+          __debugbreak();
+        }
+
+        break;
+      }
     }
 
-    return address;
+    return func_addr;
   }
 }  // namespace imperium::ldr

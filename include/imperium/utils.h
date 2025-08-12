@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <imperium/defs.h>
 
-namespace imperium::util::string {
+namespace imperium::utils::string {
   /*!
    * @brief
    *	convert a string to uppercase
@@ -120,6 +120,6 @@ namespace imperium::util::string {
 
     return cnt;
   }
-}  // namespace imperium::util::string
+}  // namespace imperium::utils::string
 
 #endif  // IMPERIUM_UTIL_H
