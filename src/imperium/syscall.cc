@@ -24,41 +24,31 @@ namespace imperium {
    *  pointer to a data structure containing information about the syscall
    */
   declfn syscall_t syscall_t::resolve( _In_ symbol_t symbol ) {
-    instance_t* instance         = instance_t::find();
-    uint8_t*    syscall_addr     = { 0 };
-    byte*       FirstSyscallAddr = { 0 };
-    syscall_t   syscall          = { 0 };
+    instance_t* instance = instance_t::find();
+    syscall_t   syscall  = { 0 };
 
     //
     // sanity check
     //
-    if ( ! symbol.function || ! symbol.module ) {
-      return syscall;
-    }
+    if ( ! symbol.function || ! symbol.module ) goto end;
 
     //
     // get the first syscall address
     // if not already resolved
     //
-    if ( ! instance->first_syscall ) {
-      //
-      //
-      //
-      if ( ! ( instance->first_syscall =
-                   static_cast< uint8_t* >( win32_t::resolve( H_FUNC( "ntdll!NtAccessCheck" ) ).function_address ) ) )
-        return syscall;
-    }
+    if ( ! instance->first_syscall && ! ( instance->first_syscall = static_cast< uint8_t* >(
+                                              win32_t::resolve( H_FUNC( "ntdll!NtAccessCheck" ) ).function_address ) ) )
+      goto end;
 
     //
     // get the syscall address
     //
-    if ( ! ( syscall_addr = static_cast< uint8_t* >( win32_t::resolve( symbol ).function_address ) ) ) return syscall;
+    if ( ! ( syscall.address = win32_t::resolve( symbol ).function_address ) ) goto end;
 
     //
     // calculate the SSN
     //
-    syscall.address = syscall_addr;
-    syscall.ssn     = ( syscall_addr - instance->first_syscall ) / 32;
+    syscall.ssn = ( static_cast< uint8_t* >( syscall.address ) - instance->first_syscall ) / 32;
 
     //
     // handle the case of ntdll!NtQuerySystemTime
@@ -66,7 +56,9 @@ namespace imperium {
     // so its syscall stub is just a jmp instruction and is not 32 bytes
     // kinda of mess all offset from there
     //
-    if ( ( syscall_addr - FirstSyscallAddr ) % 32 != 0 ) syscall.ssn++;
+    if ( ( static_cast< uint8_t* >( syscall.address ) - instance->first_syscall ) % 32 != 0 ) syscall.ssn++;
+
+  end:
     return syscall;
   }
 }  // namespace imperium
